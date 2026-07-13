@@ -32,8 +32,7 @@ export default function LoginPage() {
 
     try {
       await orgLogin(email, password);
-      await refreshOrg(); // sync AuthContext with the new token
-      router.push('/app/dashboard');
+      window.location.href = '/app/dashboard';
     } catch (err: any) {
       setError(err.message || 'Invalid email or password');
     } finally {

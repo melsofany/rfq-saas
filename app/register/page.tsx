@@ -90,8 +90,7 @@ export default function RegisterPage() {
         plan_id: planId || undefined,
       });
 
-      await refreshOrg(); // sync AuthContext with the new token
-      router.push('/app/dashboard');
+      window.location.href = '/app/dashboard';
     } catch (err: any) {
       setError(err.message || 'Registration failed. Please try again.');
     } finally {
