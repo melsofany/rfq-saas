@@ -3,14 +3,14 @@
 import {
   createContext, useContext, useEffect, useState, useCallback, useRef, ReactNode,
 } from 'react';
-import { useRouter } from 'next/navigation';
 import {
   orgGetSession, orgLogout, clearSession, OrgUser, OrgMember,
 } from '@/lib/org-auth';
-import { initTabGuard, ConflictReason } from '@/lib/tab-guard';
+import { initTabGuard } from '@/lib/tab-guard';
+import type { ConflictReason } from '@/lib/tab-guard';
 import { SessionConflictScreen } from '@/components/session-conflict-screen';
 
-const SESSION_POLL_MS = 30_000; // validate server session every 30 s
+const SESSION_POLL_MS = 30_000;
 
 export type SessionConflict = 'another_tab' | 'takeover' | 'session_replaced' | null;
 
@@ -37,7 +37,6 @@ const AuthContext = createContext<AuthContextType>({
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const router = useRouter();
   const [user, setUser] = useState<OrgUser | null>(null);
   const [orgMember, setOrgMember] = useState<OrgMember | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -72,23 +71,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => { loadSession(); }, [loadSession]);
 
-  // ── Server-session polling (detects login from another browser/device) ───
+  // ── Server-session polling — detects login from another browser/device ───
   useEffect(() => {
     if (!user) {
       if (pollTimer.current) { clearInterval(pollTimer.current); pollTimer.current = null; }
       return;
     }
     pollTimer.current = setInterval(async () => {
-      const session = await orgGetSession();
-      if (session.reason === 'session_replaced') {
-        clearSession();
-        setUser(null);
-        setOrgMember(null);
-        setSessionConflict('session_replaced');
-      } else if (!session.user) {
-        setUser(null);
-        setOrgMember(null);
-      }
+      try {
+        const session = await orgGetSession();
+        if (session.reason === 'session_replaced') {
+          clearSession();
+          setUser(null);
+          setOrgMember(null);
+          setSessionConflict('session_replaced');
+        } else if (!session.user) {
+          setUser(null);
+          setOrgMember(null);
+        }
+      } catch { /* network error — keep session alive */ }
     }, SESSION_POLL_MS);
 
     return () => {
@@ -96,16 +97,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [user]);
 
-  // ── Tab guard (detects multiple open tabs) ───────────────────────────────
+  // ── Tab guard — detects multiple open tabs ───────────────────────────────
   useEffect(() => {
     const cleanup = initTabGuard({
-      onConflict: (reason: ConflictReason) => {
-        setSessionConflict(reason);
-      },
-      onClear: () => {
-        // The blocking tab closed — we can take over automatically
-        setSessionConflict(null);
-      },
+      onConflict: (reason: ConflictReason) => setSessionConflict(reason),
+      onClear: () => setSessionConflict(null),
     });
     return cleanup;
   }, []);
@@ -161,7 +157,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         onSignIn={() => {
           clearSession();
           setSessionConflict(null);
-          router.push('/login');
+          if (typeof window !== 'undefined') {
+            window.location.href = '/login';
+          }
         }}
       />
     );
