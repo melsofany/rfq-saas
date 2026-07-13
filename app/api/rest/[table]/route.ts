@@ -8,6 +8,7 @@ const TENANT_TABLES = new Set([
   'company_settings', 'suppliers', 'supplier_categories', 'items',
   'rfqs', 'rfq_items', 'sent_log', 'offers', 'offer_items',
   'purchase_orders', 'purchase_order_items', 'audit_log', 'organization_members',
+  'org_integrations', 'whatsapp_templates',
 ]);
 
 // Tables only a SaaS admin may manage. Org users get a restricted view
