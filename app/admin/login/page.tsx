@@ -9,9 +9,6 @@ import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { AlertCircle, Shield } from 'lucide-react';
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-
 export default function AdminLoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
@@ -32,9 +29,9 @@ export default function AdminLoginPage() {
     setLoading(true);
 
     try {
-      const res = await fetch(`${SUPABASE_URL}/functions/v1/admin-auth/login`, {
+      const res = await fetch('/api/admin-auth/login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'apikey': ANON_KEY },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
 
@@ -47,7 +44,6 @@ export default function AdminLoginPage() {
       if (data.error) throw new Error(data.error);
 
       localStorage.setItem('admin_access_token', data.session.access_token);
-      localStorage.setItem('admin_refresh_token', data.session.refresh_token);
       localStorage.setItem('admin_user', JSON.stringify(data.user));
       localStorage.setItem('admin_role', JSON.stringify(data.admin));
       router.push('/admin/dashboard');

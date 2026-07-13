@@ -33,12 +33,13 @@ const AuthContext = createContext<AuthContextType>({
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<OrgUser | null>(null);
   const [orgMember, setOrgMember] = useState<OrgMember | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   const loadSession = useCallback(async () => {
     try {
       const session = await orgGetSession();
-      if (session) {
+      if (session.user) {
         setUser(session.user);
         setOrgMember(session.member);
       } else {
@@ -57,14 +58,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loadSession();
   }, [loadSession]);
 
+  useEffect(() => {
+    const checkAdmin = async () => {
+      if (typeof window === 'undefined') return;
+      const adminToken = localStorage.getItem('admin_access_token');
+      if (!adminToken) {
+        setIsAdmin(false);
+        return;
+      }
+      try {
+        const res = await fetch('/api/admin-auth/session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ access_token: adminToken }),
+        });
+        const data = await res.json();
+        setIsAdmin(!!data.admin);
+      } catch {
+        setIsAdmin(false);
+      }
+    };
+    checkAdmin();
+  }, []);
+
   const signOut = useCallback(async () => {
+    const adminToken = localStorage.getItem('admin_access_token');
+    if (adminToken) {
+      try {
+        await fetch('/api/admin-auth/logout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ access_token: adminToken }),
+        });
+      } catch {}
+      localStorage.removeItem('admin_access_token');
+      localStorage.removeItem('admin_user');
+      localStorage.removeItem('admin_role');
+    }
     try {
       await orgLogout();
-    } catch {
-      // ignore
-    }
+    } catch {}
     setUser(null);
     setOrgMember(null);
+    setIsAdmin(false);
   }, []);
 
   const refreshOrg = useCallback(async () => {
@@ -76,7 +112,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     orgId: orgMember?.org_id ?? null,
     orgRole: orgMember?.role ?? null,
     orgMember,
-    isSaasAdmin: false,
+    isSaasAdmin: isAdmin,
     isLoading,
     signOut,
     refreshOrg,

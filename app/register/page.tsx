@@ -78,6 +78,7 @@ export default function RegisterPage() {
       await orgRegister({
         email: userEmail,
         password: userPassword,
+        full_name: userName,
         org_name: orgName,
         org_name_ar: orgNameAr || undefined,
         slug,

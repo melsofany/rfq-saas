@@ -1,8 +1,5 @@
 'use client';
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-
 function getAdminToken(): string | null {
   if (typeof window === 'undefined') return null;
   return localStorage.getItem('admin_access_token');
@@ -11,7 +8,6 @@ function getAdminToken(): string | null {
 async function getHeaders(): Promise<HeadersInit> {
   return {
     'Content-Type': 'application/json',
-    'apikey': ANON_KEY,
     'Authorization': `Bearer ${getAdminToken()}`,
   };
 }
@@ -25,33 +21,32 @@ export async function adminQuery<T = any>(
     limit?: number;
   } = {}
 ): Promise<T[]> {
-  let url = `${SUPABASE_URL}/rest/v1/${table}?select=${options.select || '*'}`;
+  const params = new URLSearchParams({ table, select: options.select || '*' });
   if (options.eq) {
-    for (const [key, value] of Object.entries(options.eq)) {
-      url += `&${key}=eq.${encodeURIComponent(String(value))}`;
-    }
+    const eqs = Object.entries(options.eq).map(([k, v]) => `${k}=${v}`).join(',');
+    params.set('eq', eqs);
   }
   if (options.order) {
-    url += `&order=${options.order.column}.${options.order.ascending ? 'asc' : 'desc'}`;
+    params.set('order', options.order.column);
+    params.set('dir', options.order.ascending ? 'asc' : 'desc');
   }
-  if (options.limit) url += `&limit=${options.limit}`;
+  if (options.limit) params.set('limit', String(options.limit));
 
   const headers = await getHeaders();
-  const res = await fetch(url, { headers });
+  const res = await fetch(`/api/data?${params.toString()}`, { headers });
   if (!res.ok) throw new Error(`Query ${table} failed: ${res.status}`);
   return await res.json() as T[];
 }
 
 export async function adminInsert<T = any>(table: string, data: Record<string, any>): Promise<T> {
   const headers = await getHeaders();
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
+  const res = await fetch('/api/data', {
     method: 'POST',
-    headers: { ...headers, 'Prefer': 'return=representation' },
-    body: JSON.stringify(data),
+    headers,
+    body: JSON.stringify({ table, data }),
   });
   if (!res.ok) throw new Error(`Insert ${table} failed: ${res.status}`);
-  const result = await res.json();
-  return result[0] as T;
+  return await res.json() as T;
 }
 
 export async function adminUpdate<T = any>(
@@ -59,47 +54,36 @@ export async function adminUpdate<T = any>(
   data: Record<string, any>,
   eq: Record<string, any>
 ): Promise<T[]> {
-  let url = `${SUPABASE_URL}/rest/v1/${table}?`;
-  for (const [key, value] of Object.entries(eq)) {
-    url += `${key}=eq.${encodeURIComponent(String(value))}&`;
-  }
   const headers = await getHeaders();
-  const res = await fetch(url, {
+  const res = await fetch('/api/data', {
     method: 'PATCH',
-    headers: { ...headers, 'Prefer': 'return=representation' },
-    body: JSON.stringify(data),
+    headers,
+    body: JSON.stringify({ table, data, eq }),
   });
   if (!res.ok) throw new Error(`Update ${table} failed: ${res.status}`);
   return await res.json() as T[];
 }
 
 export async function adminDelete(table: string, eq: Record<string, any>): Promise<void> {
-  let url = `${SUPABASE_URL}/rest/v1/${table}?`;
-  for (const [key, value] of Object.entries(eq)) {
-    url += `${key}=eq.${encodeURIComponent(String(value))}&`;
-  }
+  const params = new URLSearchParams({ table });
+  const eqs = Object.entries(eq).map(([k, v]) => `${k}=${v}`).join(',');
+  params.set('eq', eqs);
+
   const headers = await getHeaders();
-  const res = await fetch(url, { method: 'DELETE', headers });
+  const res = await fetch(`/api/data?${params.toString()}`, { method: 'DELETE', headers });
   if (!res.ok) throw new Error(`Delete ${table} failed: ${res.status}`);
 }
 
 export async function adminCount(table: string, eq?: Record<string, any>): Promise<number> {
-  let url = `${SUPABASE_URL}/rest/v1/${table}?select=id`;
+  const params = new URLSearchParams({ table });
   if (eq) {
-    for (const [key, value] of Object.entries(eq)) {
-      url += `&${key}=eq.${encodeURIComponent(String(value))}`;
-    }
+    const eqs = Object.entries(eq).map(([k, v]) => `${k}=${v}`).join(',');
+    params.set('eq', eqs);
   }
+
   const headers = await getHeaders();
-  const res = await fetch(url, {
-    method: 'HEAD',
-    headers: { ...headers, 'Prefer': 'count=exact' },
-  });
+  const res = await fetch(`/api/count?${params.toString()}`, { headers });
   if (!res.ok) return 0;
-  const count = res.headers.get('content-range');
-  if (count) {
-    const parts = count.split('/');
-    if (parts.length > 1) return parseInt(parts[1], 10);
-  }
-  return 0;
+  const data = await res.json();
+  return data.count || 0;
 }
