@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { pool } from '@/lib/db';
 import { hashPassword, signToken } from '@/lib/server-auth';
+import { randomUUID } from 'crypto';
 
 export async function POST(req: NextRequest) {
   const client = await pool.connect();
@@ -63,6 +64,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // ── Single-session: generate initial session token ──
+    const sessionToken = randomUUID();
+    await client.query(
+      `UPDATE org_users SET active_session_token = $1 WHERE id = $2`,
+      [sessionToken, newUser.id]
+    );
+
     await client.query('COMMIT');
 
     const token = signToken({
@@ -71,6 +79,7 @@ export async function POST(req: NextRequest) {
       email: newUser.email,
       orgId: org.id,
       role: 'admin',
+      sessionToken,
     });
 
     return NextResponse.json({
