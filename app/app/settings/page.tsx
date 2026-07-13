@@ -21,7 +21,7 @@ import {
   Upload, X, ImageIcon,
 } from 'lucide-react';
 
-const CURRENCIES = ['USD', 'EUR', 'GBP', 'SAR', 'AED', 'KWD', 'QAR', 'BHD', 'OMR', 'JPY', 'CNY', 'INR'];
+const CURRENCIES = ['USD', 'EUR', 'GBP', 'SAR', 'AED', 'KWD', 'QAR', 'BHD', 'OMR', 'EGP', 'JPY', 'CNY', 'INR'];
 const MAX_LOGO_SIZE_MB = 2;
 
 interface CompanySettings {
