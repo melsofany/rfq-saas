@@ -4,9 +4,6 @@ const TOKEN_KEY = 'org_access_token';
 const USER_KEY = 'org_user';
 const MEMBER_KEY = 'org_member';
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://0ec90b57d6e95fcbda19832f.supabase.co';
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJib2x0IiwicmVmIjoiMGVjOTBiNTdkNmU5NWZjYmRhMTk4MzJmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg4ODE1NzQsImV4cCI6MTc1ODg4MTU3NH0.9I8-U0x86Ak8t2DGaIk0HfvTSLsAyzdnz-Nw00mMkKw';
-
 export interface OrgUser {
   id: string;
   email: string;
@@ -45,22 +42,14 @@ export function clearSession() {
   localStorage.removeItem(MEMBER_KEY);
 }
 
-function edgeUrl(action: string) {
-  return `${SUPABASE_URL}/functions/v1/org-auth/${action}`;
-}
-
-function edgeHeaders() {
-  return {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-    'apikey': SUPABASE_ANON_KEY,
-  };
+function apiUrl(action: string) {
+  return `/api/org-auth/${action}`;
 }
 
 export async function orgLogin(email: string, password: string) {
-  const res = await fetch(edgeUrl('login'), {
+  const res = await fetch(apiUrl('login'), {
     method: 'POST',
-    headers: edgeHeaders(),
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password }),
   });
 
@@ -83,9 +72,9 @@ export async function orgRegister(data: {
   country?: string;
   plan_id?: string;
 }) {
-  const res = await fetch(edgeUrl('register'), {
+  const res = await fetch(apiUrl('register'), {
     method: 'POST',
-    headers: edgeHeaders(),
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
 
@@ -103,9 +92,9 @@ export async function orgGetSession(): Promise<{ user: OrgUser | null; member: O
   if (!stored) return { user: null, member: null };
 
   try {
-    const res = await fetch(edgeUrl('session'), {
+    const res = await fetch(apiUrl('session'), {
       method: 'POST',
-      headers: edgeHeaders(),
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ access_token: stored.accessToken }),
     });
 
@@ -130,10 +119,7 @@ export async function orgGetSession(): Promise<{ user: OrgUser | null; member: O
 
 export async function orgLogout() {
   try {
-    await fetch(edgeUrl('logout'), {
-      method: 'POST',
-      headers: edgeHeaders(),
-    });
+    await fetch(apiUrl('logout'), { method: 'POST' });
   } catch {}
   clearSession();
 }
