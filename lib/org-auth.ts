@@ -4,6 +4,9 @@ const TOKEN_KEY = 'org_access_token';
 const USER_KEY = 'org_user';
 const MEMBER_KEY = 'org_member';
 
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+
 export interface OrgUser {
   id: string;
   email: string;
@@ -42,10 +45,22 @@ export function clearSession() {
   localStorage.removeItem(MEMBER_KEY);
 }
 
+function edgeUrl(action: string) {
+  return `${SUPABASE_URL}/functions/v1/org-auth/${action}`;
+}
+
+function edgeHeaders() {
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+    'apikey': SUPABASE_ANON_KEY,
+  };
+}
+
 export async function orgLogin(email: string, password: string) {
-  const res = await fetch('/api/org-auth/login', {
+  const res = await fetch(edgeUrl('login'), {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: edgeHeaders(),
     body: JSON.stringify({ email, password }),
   });
 
@@ -68,9 +83,9 @@ export async function orgRegister(data: {
   country?: string;
   plan_id?: string;
 }) {
-  const res = await fetch('/api/org-auth/register', {
+  const res = await fetch(edgeUrl('register'), {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: edgeHeaders(),
     body: JSON.stringify(data),
   });
 
@@ -88,9 +103,9 @@ export async function orgGetSession(): Promise<{ user: OrgUser | null; member: O
   if (!stored) return { user: null, member: null };
 
   try {
-    const res = await fetch('/api/org-auth/session', {
+    const res = await fetch(edgeUrl('session'), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: edgeHeaders(),
       body: JSON.stringify({ access_token: stored.accessToken }),
     });
 
@@ -115,9 +130,9 @@ export async function orgGetSession(): Promise<{ user: OrgUser | null; member: O
 
 export async function orgLogout() {
   try {
-    await fetch('/api/org-auth/logout', {
+    await fetch(edgeUrl('logout'), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: edgeHeaders(),
     });
   } catch {}
   clearSession();

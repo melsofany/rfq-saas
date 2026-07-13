@@ -67,9 +67,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
       try {
-        const res = await fetch('/api/admin-auth/session', {
+        const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+        const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+        const res = await fetch(`${SUPABASE_URL}/functions/v1/admin-auth/session`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+            'apikey': SUPABASE_ANON_KEY,
+          },
           body: JSON.stringify({ access_token: adminToken }),
         });
         const data = await res.json();
@@ -85,9 +91,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const adminToken = localStorage.getItem('admin_access_token');
     if (adminToken) {
       try {
-        await fetch('/api/admin-auth/logout', {
+        const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+        const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+        await fetch(`${SUPABASE_URL}/functions/v1/admin-auth/logout`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+            'apikey': SUPABASE_ANON_KEY,
+          },
           body: JSON.stringify({ access_token: adminToken }),
         });
       } catch {}

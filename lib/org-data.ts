@@ -2,12 +2,20 @@
 
 import { getAccessToken } from './org-auth';
 
-async function getHeaders(): Promise<HeadersInit> {
-  const token = getAccessToken();
-  return {
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+
+function restUrl(table: string) {
+  return `${SUPABASE_URL}/rest/v1/${table}`;
+}
+
+function restHeaders(token?: string | null): HeadersInit {
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    'Authorization': `Bearer ${token}`,
+    'apikey': SUPABASE_ANON_KEY,
+    'Authorization': `Bearer ${token || SUPABASE_ANON_KEY}`,
   };
+  return headers;
 }
 
 export async function dataQuery<T = any>(
@@ -19,19 +27,20 @@ export async function dataQuery<T = any>(
     limit?: number;
   } = {}
 ): Promise<T[]> {
-  const params = new URLSearchParams({ table, select: options.select || '*' });
+  const params = new URLSearchParams();
+  params.set('select', options.select || '*');
   if (options.eq) {
-    const eqs = Object.entries(options.eq).map(([k, v]) => `${k}=${v}`).join(',');
-    params.set('eq', eqs);
+    for (const [k, v] of Object.entries(options.eq)) {
+      params.set(k, `eq.${v}`);
+    }
   }
   if (options.order) {
-    params.set('order', options.order.column);
-    params.set('dir', options.order.ascending ? 'asc' : 'desc');
+    params.set('order', `${options.order.column}.${options.order.ascending ? 'asc' : 'desc'}`);
   }
   if (options.limit) params.set('limit', String(options.limit));
 
-  const headers = await getHeaders();
-  const res = await fetch(`/api/data?${params.toString()}`, { headers });
+  const token = getAccessToken();
+  const res = await fetch(`${restUrl(table)}?${params.toString()}`, { headers: restHeaders(token) });
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`Query ${table} failed: ${res.status} ${text}`);
@@ -40,17 +49,18 @@ export async function dataQuery<T = any>(
 }
 
 export async function dataInsert<T = any>(table: string, data: Record<string, any>): Promise<T> {
-  const headers = await getHeaders();
-  const res = await fetch('/api/data', {
+  const token = getAccessToken();
+  const res = await fetch(restUrl(table), {
     method: 'POST',
-    headers,
-    body: JSON.stringify({ table, data }),
+    headers: { ...restHeaders(token), 'Prefer': 'return=representation' },
+    body: JSON.stringify(data),
   });
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`Insert ${table} failed: ${res.status} ${text}`);
   }
-  return await res.json() as T;
+  const result = await res.json();
+  return Array.isArray(result) ? result[0] : result;
 }
 
 export async function dataUpdate<T = any>(
@@ -58,11 +68,15 @@ export async function dataUpdate<T = any>(
   data: Record<string, any>,
   eq: Record<string, any>
 ): Promise<T[]> {
-  const headers = await getHeaders();
-  const res = await fetch('/api/data', {
+  const params = new URLSearchParams();
+  for (const [k, v] of Object.entries(eq)) {
+    params.set(k, `eq.${v}`);
+  }
+  const token = getAccessToken();
+  const res = await fetch(`${restUrl(table)}?${params.toString()}`, {
     method: 'PATCH',
-    headers,
-    body: JSON.stringify({ table, data, eq }),
+    headers: { ...restHeaders(token), 'Prefer': 'return=representation' },
+    body: JSON.stringify(data),
   });
   if (!res.ok) {
     const text = await res.text();
@@ -72,12 +86,15 @@ export async function dataUpdate<T = any>(
 }
 
 export async function dataDelete(table: string, eq: Record<string, any>): Promise<void> {
-  const params = new URLSearchParams({ table });
-  const eqs = Object.entries(eq).map(([k, v]) => `${k}=${v}`).join(',');
-  params.set('eq', eqs);
-
-  const headers = await getHeaders();
-  const res = await fetch(`/api/data?${params.toString()}`, { method: 'DELETE', headers });
+  const params = new URLSearchParams();
+  for (const [k, v] of Object.entries(eq)) {
+    params.set(k, `eq.${v}`);
+  }
+  const token = getAccessToken();
+  const res = await fetch(`${restUrl(table)}?${params.toString()}`, {
+    method: 'DELETE',
+    headers: restHeaders(token),
+  });
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`Delete ${table} failed: ${res.status} ${text}`);
@@ -85,15 +102,25 @@ export async function dataDelete(table: string, eq: Record<string, any>): Promis
 }
 
 export async function dataCount(table: string, eq?: Record<string, any>): Promise<number> {
-  const params = new URLSearchParams({ table });
+  const params = new URLSearchParams();
+  params.set('select', '*');
   if (eq) {
-    const eqs = Object.entries(eq).map(([k, v]) => `${k}=${v}`).join(',');
-    params.set('eq', eqs);
+    for (const [k, v] of Object.entries(eq)) {
+      params.set(k, `eq.${v}`);
+    }
   }
-
-  const headers = await getHeaders();
-  const res = await fetch(`/api/count?${params.toString()}`, { headers });
+  const token = getAccessToken();
+  const res = await fetch(`${restUrl(table)}?${params.toString()}`, {
+    headers: { ...restHeaders(token), 'Prefer': 'count=exact' },
+  });
   if (!res.ok) return 0;
+  const count = res.headers.get('content-range');
+  if (count) {
+    const parts = count.split('/');
+    if (parts.length > 1 && parts[1] !== '*') {
+      return parseInt(parts[1], 10);
+    }
+  }
   const data = await res.json();
-  return data.count || 0;
+  return Array.isArray(data) ? data.length : 0;
 }
