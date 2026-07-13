@@ -6,11 +6,11 @@ import { AuthProvider } from '@/lib/auth-context';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'RFQ Manager — Procurement SaaS Platform',
-  description: 'Streamline your procurement process with RFQ Manager. Manage suppliers, RFQs, purchase orders, and offers all in one platform.',
+  title: 'Qotix — Procurement SaaS Platform',
+  description: 'Streamline your procurement process with Qotix. Manage suppliers, RFQs, purchase orders, and offers all in one platform.',
   openGraph: {
-    title: 'RFQ Manager — Procurement SaaS Platform',
-    description: 'Streamline your procurement process with RFQ Manager.',
+    title: 'Qotix — Procurement SaaS Platform',
+    description: 'Streamline your procurement process with Qotix.',
   },
 };
 

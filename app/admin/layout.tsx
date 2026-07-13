@@ -79,7 +79,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
           <div className="flex flex-col leading-tight">
             <span className="font-bold text-sm">SaaS Admin</span>
-            <span className="text-[11px] text-sidebar-foreground/60">RFQ Manager</span>
+            <span className="text-[11px] text-sidebar-foreground/60">Qotix</span>
           </div>
         </div>
 

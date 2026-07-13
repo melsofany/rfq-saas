@@ -47,7 +47,7 @@ export default function LoginPage() {
           <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center">
             <FileText className="w-5 h-5 text-white" />
           </div>
-          <span className="font-bold text-xl text-foreground">RFQ Manager</span>
+          <span className="font-bold text-xl text-foreground">Qotix</span>
         </Link>
 
         <Card className="p-6">
@@ -95,7 +95,7 @@ export default function LoginPage() {
         </div>
 
         <p className="text-center text-sm text-muted-foreground mt-4">
-          New to RFQ Manager?{' '}
+          New to Qotix?{' '}
           <Link href="/register" className="text-primary font-medium hover:underline">Create an account</Link>
         </p>
         <p className="text-center text-xs text-muted-foreground mt-2">

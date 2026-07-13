@@ -99,7 +99,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </div>
         {!collapsed && (
           <div className="flex flex-col min-w-0">
-            <span className="font-bold text-sm text-sidebar-foreground truncate">RFQ Manager</span>
+            <span className="font-bold text-sm text-sidebar-foreground truncate">Qotix</span>
             <span className="text-xs text-sidebar-foreground/50 truncate">Procurement Suite</span>
           </div>
         )}
@@ -201,7 +201,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
               <FileBarChart className="w-4 h-4 text-white" />
             </div>
-            <span className="font-bold text-sm">RFQ Manager</span>
+            <span className="font-bold text-sm">Qotix</span>
           </div>
           <div className="w-10" />
         </header>

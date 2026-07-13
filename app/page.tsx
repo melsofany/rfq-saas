@@ -68,7 +68,7 @@ export default function LandingPage() {
               <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center">
                 <FileText className="w-5 h-5 text-white" />
               </div>
-              <span className="font-bold text-lg text-foreground">RFQ Manager</span>
+              <span className="font-bold text-lg text-foreground">Qotix</span>
             </Link>
 
             <div className="hidden md:flex items-center gap-8">
@@ -143,7 +143,7 @@ export default function LandingPage() {
           </h1>
 
           <p className="mt-6 text-lg text-muted-foreground max-w-2xl mx-auto animate-slide-up" style={{ animationDelay: '0.1s' }}>
-            RFQ Manager helps companies streamline their purchasing process. Create RFQs,
+            Qotix helps companies streamline their purchasing process. Create RFQs,
             send them to suppliers, compare offers, and generate purchase orders — all in one place.
           </p>
 
@@ -329,7 +329,7 @@ export default function LandingPage() {
             <div className="relative">
               <h2 className="text-3xl font-bold text-sidebar-foreground">Ready to streamline your procurement?</h2>
               <p className="mt-3 text-sidebar-foreground/70 max-w-xl mx-auto">
-                Join hundreds of companies using RFQ Manager to save time and money on procurement.
+                Join hundreds of companies using Qotix to save time and money on procurement.
               </p>
               <Link href="/register">
                 <Button size="lg" className="mt-6">
@@ -349,7 +349,7 @@ export default function LandingPage() {
               <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
                 <FileText className="w-4 h-4 text-white" />
               </div>
-              <span className="font-bold text-foreground">RFQ Manager</span>
+              <span className="font-bold text-foreground">Qotix</span>
             </div>
             <div className="flex items-center gap-6 text-sm text-muted-foreground">
               <a href="#features" className="hover:text-foreground transition-colors">Features</a>
@@ -357,7 +357,7 @@ export default function LandingPage() {
               <Link href="/login" className="hover:text-foreground transition-colors">Sign In</Link>
               <Link href="/admin/login" className="hover:text-foreground transition-colors">Admin</Link>
             </div>
-            <p className="text-xs text-muted-foreground">© 2026 RFQ Manager. All rights reserved.</p>
+            <p className="text-xs text-muted-foreground">© 2026 Qotix. All rights reserved.</p>
           </div>
         </div>
       </footer>
