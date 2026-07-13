@@ -413,26 +413,15 @@ export default function SettingsPage() {
                     </div>
                   </div>
 
-                  {/* Tax Number & Commercial Registration */}
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="space-y-1.5">
-                      <Label htmlFor="tax_number">Tax Number</Label>
-                      <Input
-                        id="tax_number"
-                        value={formData.tax_number}
-                        onChange={(e) => setFormData({ ...formData, tax_number: e.target.value })}
-                        placeholder="TAX-123456789"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="commercial_registration">Commercial Registration</Label>
-                      <Input
-                        id="commercial_registration"
-                        value={formData.commercial_registration}
-                        onChange={(e) => setFormData({ ...formData, commercial_registration: e.target.value })}
-                        placeholder="CR-1234567890"
-                      />
-                    </div>
+                  {/* Tax Number */}
+                  <div className="space-y-1.5 max-w-xs">
+                    <Label htmlFor="tax_number">Tax Number</Label>
+                    <Input
+                      id="tax_number"
+                      value={formData.tax_number}
+                      onChange={(e) => setFormData({ ...formData, tax_number: e.target.value })}
+                      placeholder="TAX-123456789"
+                    />
                   </div>
 
                   {/* Currency */}
