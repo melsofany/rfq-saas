@@ -13,7 +13,7 @@ import { AlertCircle, FileText } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, refreshOrg } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -32,6 +32,7 @@ export default function LoginPage() {
 
     try {
       await orgLogin(email, password);
+      await refreshOrg(); // sync AuthContext with the new token
       router.push('/app/dashboard');
     } catch (err: any) {
       setError(err.message || 'Invalid email or password');

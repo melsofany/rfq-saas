@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { orgRegister } from '@/lib/org-auth';
+import { useAuth } from '@/lib/auth-context';
 import { dataQuery } from '@/lib/org-data';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,6 +14,7 @@ import { AlertCircle, FileText, ArrowLeft, Check } from 'lucide-react';
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { refreshOrg } = useAuth();
   const [step, setStep] = useState<'org' | 'user'>('org');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -88,6 +90,7 @@ export default function RegisterPage() {
         plan_id: planId || undefined,
       });
 
+      await refreshOrg(); // sync AuthContext with the new token
       router.push('/app/dashboard');
     } catch (err: any) {
       setError(err.message || 'Registration failed. Please try again.');
