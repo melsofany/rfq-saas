@@ -58,8 +58,8 @@ function checkAccess(req: NextRequest, table: string): Access {
   if (!isAdmin && !isOrg) return { ok: false, status: 401, error: 'Unauthorized' };
 
   if (ADMIN_TABLES.has(table) && !isAdmin) {
-    // org users can only read their own organization row, nothing else
-    if (table === 'organizations' && req.method === 'GET') {
+    // org users can read their own organization row or their own subscriptions
+    if (req.method === 'GET' && (table === 'organizations' || table === 'subscriptions')) {
       return { ok: true, isAdmin, isOrg, orgId: (auth as any).orgId };
     }
     return { ok: false, status: 403, error: 'Forbidden' };
@@ -87,6 +87,10 @@ export async function GET(req: NextRequest, { params }: { params: { table: strin
     }
     if (table === 'organizations' && access.isOrg && !access.isAdmin) {
       clauses.push('id');
+      values.push(access.orgId);
+    }
+    if (table === 'subscriptions' && access.isOrg && !access.isAdmin) {
+      clauses.push('org_id');
       values.push(access.orgId);
     }
 
