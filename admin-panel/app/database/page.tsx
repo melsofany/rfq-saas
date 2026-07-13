@@ -17,14 +17,14 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 
 const DB_INFO = {
-  name: 'rfq_saas',
-  host: 'dpg-d9a0q8d8nd3s73a9n6og-a.oregon-postgres.render.com',
+  name: 'postgres',
+  host: '0ec90b57d6e95fcbda19832f.supabase.co',
   port: 5432,
-  user: 'rfq_admin',
-  databaseId: 'dpg-d9a0q8d8nd3s73a9n6og-a',
-  plan: 'basic_256mb',
-  region: 'oregon',
-  version: '16',
+  user: 'postgres',
+  databaseId: '0ec90b57d6e95fcbda19832f',
+  plan: 'Supabase Free',
+  region: 'us-east-1',
+  version: '15',
 };
 
 const TABLES_TO_COUNT = [
@@ -41,7 +41,7 @@ const TABLES_TO_COUNT = [
   'saas_admins',
 ];
 
-const CONNECTION_STRING = `postgresql://rfq_admin:••••••••@${DB_INFO.host}:${DB_INFO.port}/${DB_INFO.name}`;
+const CONNECTION_STRING = `https://${DB_INFO.host}/rest/v1/`;
 
 export default function DatabasePage() {
   const [tableCounts, setTableCounts] = useState<Record<string, number>>({});
@@ -102,7 +102,7 @@ export default function DatabasePage() {
             <Database className="h-5 w-5 text-primary" />
             <div>
               <CardTitle className="text-lg">Connection Information</CardTitle>
-              <CardDescription>Render PostgreSQL database details</CardDescription>
+              <CardDescription>Supabase PostgreSQL database details</CardDescription>
             </div>
           </div>
         </CardHeader>
@@ -147,7 +147,7 @@ export default function DatabasePage() {
               </Button>
             </div>
             <p className="text-xs text-muted-foreground">
-              Password is masked for security. Use your actual password to connect.
+              REST API endpoint. Access is controlled via anon key and edge functions.
             </p>
           </div>
         </CardContent>
