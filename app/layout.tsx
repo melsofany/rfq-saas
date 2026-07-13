@@ -1,0 +1,29 @@
+import './globals.css';
+import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
+import { AuthProvider } from '@/lib/auth-context';
+
+const inter = Inter({ subsets: ['latin'] });
+
+export const metadata: Metadata = {
+  title: 'RFQ Manager — Procurement SaaS Platform',
+  description: 'Streamline your procurement process with RFQ Manager. Manage suppliers, RFQs, purchase orders, and offers all in one platform.',
+  openGraph: {
+    title: 'RFQ Manager — Procurement SaaS Platform',
+    description: 'Streamline your procurement process with RFQ Manager.',
+  },
+};
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en" suppressHydrationWarning>
+      <body className={inter.className} suppressHydrationWarning>
+        <AuthProvider>{children}</AuthProvider>
+      </body>
+    </html>
+  );
+}
