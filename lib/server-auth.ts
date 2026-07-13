@@ -5,8 +5,6 @@ import { NextRequest } from 'next/server';
 const JWT_SECRET = process.env.JWT_SECRET;
 
 if (!JWT_SECRET && process.env.NODE_ENV === 'production') {
-  // Don't crash the whole build, but this will make all tokens invalid
-  // until the env var is set on Render.
   console.error('WARNING: JWT_SECRET is not set. Set it in Render → Environment.');
 }
 
@@ -18,6 +16,7 @@ export type OrgTokenPayload = {
   email: string;
   orgId: string;
   role: string;
+  sessionToken: string; // single-session enforcement
 };
 
 export type AdminTokenPayload = {

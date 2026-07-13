@@ -17,6 +17,12 @@ export interface OrgMember {
   is_active: boolean;
 }
 
+export interface SessionResult {
+  user: OrgUser | null;
+  member: OrgMember | null;
+  reason?: 'session_replaced';
+}
+
 function getStoredTokens() {
   if (typeof window === 'undefined') return null;
   const accessToken = localStorage.getItem(TOKEN_KEY);
@@ -87,7 +93,7 @@ export async function orgRegister(data: {
   return result;
 }
 
-export async function orgGetSession(): Promise<{ user: OrgUser | null; member: OrgMember | null }> {
+export async function orgGetSession(): Promise<SessionResult> {
   const stored = getStoredTokens();
   if (!stored) return { user: null, member: null };
 
@@ -104,6 +110,13 @@ export async function orgGetSession(): Promise<{ user: OrgUser | null; member: O
     }
 
     const data = await res.json();
+
+    // Session was replaced by another login (different browser/device)
+    if (!data.user && data.reason === 'session_replaced') {
+      clearSession();
+      return { user: null, member: null, reason: 'session_replaced' };
+    }
+
     if (!data.user) {
       clearSession();
       return { user: null, member: null };

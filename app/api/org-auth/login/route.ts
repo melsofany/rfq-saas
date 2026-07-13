@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { pool } from '@/lib/db';
 import { signToken, verifyPassword } from '@/lib/server-auth';
+import { randomUUID } from 'crypto';
 
 export async function POST(req: NextRequest) {
   try {
@@ -32,12 +33,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No active organization membership' }, { status: 403 });
     }
 
+    // ── Single-session: generate new session token, invalidating all others ──
+    const sessionToken = randomUUID();
+    await pool.query(
+      `UPDATE org_users SET active_session_token = $1 WHERE id = $2`,
+      [sessionToken, user.id]
+    );
+
     const token = signToken({
       type: 'org',
       sub: user.id,
       email: user.email,
       orgId: member.org_id,
       role: member.role,
+      sessionToken,
     });
 
     return NextResponse.json({

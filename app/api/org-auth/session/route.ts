@@ -12,6 +12,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ user: null, member: null });
     }
 
+    // ── Single-session check: token must match DB ──
+    const { rows: sessionRows } = await pool.query(
+      `SELECT active_session_token FROM org_users WHERE id = $1 AND is_active = true`,
+      [decoded.sub]
+    );
+    const dbUser = sessionRows[0];
+
+    if (!dbUser) return NextResponse.json({ user: null, member: null });
+
+    // If DB has a session_token but JWT doesn't match → another login replaced it
+    if (dbUser.active_session_token && decoded.sessionToken !== dbUser.active_session_token) {
+      return NextResponse.json({ user: null, member: null, reason: 'session_replaced' });
+    }
+
     const { rows: userRows } = await pool.query(
       `SELECT id, email, full_name, is_active FROM org_users WHERE id = $1 AND is_active = true`,
       [decoded.sub]
