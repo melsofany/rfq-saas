@@ -425,10 +425,7 @@ export default function SettingsPage() {
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <Label htmlFor="commercial_registration">
-                        Commercial Registration
-                        <span className="mr-1 text-xs text-muted-foreground font-normal"> (السجل التجاري)</span>
-                      </Label>
+                      <Label htmlFor="commercial_registration">Commercial Registration</Label>
                       <Input
                         id="commercial_registration"
                         value={formData.commercial_registration}
