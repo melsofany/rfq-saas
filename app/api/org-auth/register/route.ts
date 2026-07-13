@@ -44,9 +44,9 @@ export async function POST(req: NextRequest) {
     const org = orgRows[0];
 
     const { rows: memberRows } = await client.query(
-      `INSERT INTO organization_members (org_id, user_id, role, is_active)
-       VALUES ($1,$2,'admin',true) RETURNING id, org_id, role, is_active`,
-      [org.id, newUser.id]
+      `INSERT INTO organization_members (org_id, user_id, email, role, is_active)
+       VALUES ($1,$2,$3,'admin',true) RETURNING id, org_id, role, is_active`,
+      [org.id, newUser.id, lowerEmail]
     );
     const member = memberRows[0];
 
