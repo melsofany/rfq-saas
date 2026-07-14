@@ -65,12 +65,14 @@ export async function POST(req: NextRequest) {
 
     await client.query('COMMIT');
 
+    const sessionToken = Math.random().toString(36).substring(2) + Date.now().toString(36);
     const token = signToken({
       type: 'org',
       sub: newUser.id,
       email: newUser.email,
       orgId: org.id,
       role: 'admin',
+      sessionToken,
     });
 
     return NextResponse.json({
