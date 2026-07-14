@@ -58,7 +58,7 @@ export async function sendWhatsAppText(orgId: string, to: string, body: string) 
   const waMessageId = (response as any)?.messages?.[0]?.id || null;
 
   await pool.query(
-    `INSERT INTO whatsapp_messages (org_id, contact_wa_id, direction, message_type, body, status, wa_message_id)
+    `INSERT INTO whatsapp_messages (org_id, phone, direction, message_type, content, status, wa_message_id)
      VALUES ($1, $2, 'out', 'text', $3, 'sent', $4)`,
     [orgId, to, body, waMessageId]
   );

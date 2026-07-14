@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { pool } from '@/lib/db';
+import { getCompanySettings } from '@/lib/company';
 
 // Public, token-based endpoints — no org/admin auth. A supplier reaches these
 // via the unique link we sent them (email/WhatsApp), so the token IS the auth.
@@ -27,6 +28,9 @@ export async function GET(req: NextRequest, { params }: { params: { token: strin
       [log.rfq_id]
     );
 
+    const { rows: sentLogOrgRows } = await pool.query(`SELECT org_id FROM sent_log WHERE id = $1`, [log.id]);
+    const company = await getCompanySettings(sentLogOrgRows[0]?.org_id);
+
     await pool.query(
       `UPDATE sent_log SET link_opened = true, open_count = open_count + 1,
               first_opened_at = COALESCE(first_opened_at, now()), last_opened_at = now()
@@ -46,6 +50,15 @@ export async function GET(req: NextRequest, { params }: { params: { token: strin
       items,
       close_date: log.close_date,
       offer_submitted: log.offer_submitted,
+      company: company
+        ? {
+            name: company.name_en || company.name_ar,
+            logo_url: company.logo_url,
+            address: company.address,
+            phone: company.phone,
+            email: company.email,
+          }
+        : null,
     });
   } catch (err: any) {
     console.error('offer GET error:', err);

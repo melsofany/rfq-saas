@@ -20,6 +20,14 @@ interface RfqItem {
   uom: string | null;
 }
 
+interface CompanyInfo {
+  name: string | null;
+  logo_url: string | null;
+  address: string | null;
+  phone: string | null;
+  email: string | null;
+}
+
 interface OfferData {
   rfq: {
     internal_rfq_no: string;
@@ -32,6 +40,7 @@ interface OfferData {
   items: RfqItem[];
   close_date: string | null;
   offer_submitted: boolean;
+  company: CompanyInfo | null;
 }
 
 interface ItemInput {
@@ -143,25 +152,31 @@ export default function PublicOfferPage() {
 
   if (!data) return null;
 
+  const company = data.company;
+
   if (submitted || data.offer_submitted) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-8 bg-muted/30">
-        <Card className="max-w-md w-full">
-          <CardContent className="p-8 text-center">
-            <CheckCircle2 className="w-10 h-10 mx-auto mb-3 text-green-600" />
-            <h2 className="text-lg font-semibold mb-1">Offer Submitted</h2>
-            <p className="text-sm text-muted-foreground">
-              Thank you, {data.supplier.name}. Your offer for RFQ {data.rfq.internal_rfq_no} has been received.
-            </p>
-          </CardContent>
-        </Card>
+      <div className="min-h-screen flex flex-col bg-muted/30">
+        <CompanyLetterhead company={company} />
+        <div className="flex-1 flex items-center justify-center p-8">
+          <Card className="max-w-md w-full">
+            <CardContent className="p-8 text-center">
+              <CheckCircle2 className="w-10 h-10 mx-auto mb-3 text-green-600" />
+              <h2 className="text-lg font-semibold mb-1">Offer Submitted</h2>
+              <p className="text-sm text-muted-foreground">
+                Thank you, {data.supplier.name}. Your offer for RFQ {data.rfq.internal_rfq_no} has been received.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-muted/30 p-4 lg:p-8">
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen bg-muted/30">
+      <CompanyLetterhead company={company} />
+      <div className="max-w-4xl mx-auto p-4 lg:p-8">
         <div className="flex items-center gap-3 mb-6">
           <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
             <FileText className="w-5 h-5 text-primary" />
@@ -281,6 +296,37 @@ export default function PublicOfferPage() {
             </Button>
           </div>
         </form>
+
+        <p className="text-center text-xs text-muted-foreground mt-8 pb-4">
+          {company?.name ? `${company.name} · ` : ''}Powered by RFQ Manager
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function CompanyLetterhead({ company }: { company: CompanyInfo | null }) {
+  if (!company || (!company.name && !company.logo_url)) return null;
+  const contactLine = [company.phone, company.email].filter(Boolean).join('  ·  ');
+  return (
+    <div className="bg-white border-b border-border">
+      <div className="max-w-4xl mx-auto px-4 lg:px-8 py-4 flex items-center gap-4">
+        {company.logo_url && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={company.logo_url}
+            alt={company.name ?? 'Company logo'}
+            className="h-12 w-12 object-contain rounded"
+          />
+        )}
+        <div>
+          {company.name && <p className="text-base font-semibold text-foreground">{company.name}</p>}
+          {(company.address || contactLine) && (
+            <p className="text-xs text-muted-foreground">
+              {[company.address, contactLine].filter(Boolean).join('  ·  ')}
+            </p>
+          )}
+        </div>
       </div>
     </div>
   );

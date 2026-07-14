@@ -19,12 +19,19 @@ export async function getOrgSmtpSettings(orgId: string): Promise<OrgSmtpSettings
   return rows[0] || null;
 }
 
+export type EmailAttachment = {
+  filename: string;
+  content: Buffer;
+  contentType?: string;
+};
+
 /** Send an email on behalf of an org using its saved SMTP settings. */
 export async function sendOrgEmail(
   orgId: string,
   to: string,
   subject: string,
-  html: string
+  html: string,
+  attachments?: EmailAttachment[]
 ): Promise<{ messageId: string }> {
   const settings = await getOrgSmtpSettings(orgId);
   if (!settings || !settings.smtp_host || !settings.smtp_user || !settings.smtp_pass) {
@@ -46,6 +53,7 @@ export async function sendOrgEmail(
     to,
     subject,
     html,
+    attachments,
   });
 
   return { messageId: info.messageId };

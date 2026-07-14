@@ -15,9 +15,9 @@ export async function GET(req: NextRequest) {
   try {
     if (contact) {
       const { rows } = await pool.query(
-        `SELECT id, contact_wa_id, contact_name, direction, message_type, body, status, wa_message_id, created_at
+        `SELECT id, phone AS contact_wa_id, contact_name, direction, message_type, content AS body, status, wa_message_id, created_at
          FROM whatsapp_messages
-         WHERE org_id = $1 AND contact_wa_id = $2
+         WHERE org_id = $1 AND phone = $2
          ORDER BY created_at ASC`,
         [auth.orgId, contact]
       );
@@ -25,11 +25,11 @@ export async function GET(req: NextRequest) {
     }
 
     const { rows } = await pool.query(
-      `SELECT DISTINCT ON (contact_wa_id)
-         contact_wa_id, contact_name, body AS last_message, direction, status, created_at AS last_message_at
+      `SELECT DISTINCT ON (phone)
+         phone AS contact_wa_id, contact_name, content AS last_message, direction, status, created_at AS last_message_at
        FROM whatsapp_messages
        WHERE org_id = $1
-       ORDER BY contact_wa_id, created_at DESC`,
+       ORDER BY phone, created_at DESC`,
       [auth.orgId]
     );
     rows.sort((a: any, b: any) => new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime());

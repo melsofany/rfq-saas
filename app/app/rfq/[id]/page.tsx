@@ -11,13 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
 import {
   Dialog,
   DialogContent,
@@ -43,6 +37,7 @@ import {
 import {
   ArrowLeft, FileText, Package, Inbox, Calendar, User, Clock,
   Send, AlertCircle, CheckCircle2, XCircle, MessageCircle, Mail,
+  Search as SearchIcon,
 } from 'lucide-react';
 
 interface RfqItem {
@@ -114,7 +109,8 @@ export default function RfqDetailPage() {
   const [sendOpen, setSendOpen] = useState(false);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [categoryFilters, setCategoryFilters] = useState<string[]>([]);
+  const [supplierSearch, setSupplierSearch] = useState('');
   const [selectedSupplierIds, setSelectedSupplierIds] = useState<string[]>([]);
   const [viaWhatsapp, setViaWhatsapp] = useState(true);
   const [viaEmail, setViaEmail] = useState(true);
@@ -232,7 +228,15 @@ export default function RfqDetailPage() {
     }
   };
 
-  const filteredSuppliers = suppliers.filter((s) => categoryFilter === 'all' || s.category === categoryFilter);
+  const filteredSuppliers = suppliers.filter((s) => {
+    const matchesCategory = categoryFilters.length === 0 || categoryFilters.includes(s.category);
+    const matchesSearch = supplierSearch.trim() === '' || s.name.toLowerCase().includes(supplierSearch.trim().toLowerCase());
+    return matchesCategory && matchesSearch;
+  });
+
+  const toggleCategoryFilter = (name: string) => {
+    setCategoryFilters((prev) => (prev.includes(name) ? prev.filter((c) => c !== name) : [...prev, name]));
+  };
 
   const toggleSupplier = (supplierId: string) => {
     setSelectedSupplierIds((prev) =>
@@ -254,7 +258,8 @@ export default function RfqDetailPage() {
     setSendError('');
     setSendResults(null);
     setSelectedSupplierIds([]);
-    setCategoryFilter('all');
+    setCategoryFilters([]);
+    setSupplierSearch('');
     setSendMessage('');
     setSendOpen(true);
   };
@@ -587,25 +592,59 @@ export default function RfqDetailPage() {
           ) : (
             <div className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-sm font-medium">Filter by Category</label>
-                <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="All categories" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All categories</SelectItem>
-                    {categories.map((c) => (
-                      <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <label className="text-sm font-medium">Filter by Category (select any number)</label>
+                <div className="flex flex-wrap gap-2">
+                  {categories.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">No categories yet</p>
+                  ) : (
+                    categories.map((c) => {
+                      const active = categoryFilters.includes(c.name);
+                      return (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => toggleCategoryFilter(c.name)}
+                          className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                            active
+                              ? 'bg-primary text-primary-foreground border-primary'
+                              : 'bg-background text-muted-foreground border-border hover:bg-accent/40'
+                          }`}
+                        >
+                          {c.name}
+                        </button>
+                      );
+                    })
+                  )}
+                  {categoryFilters.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setCategoryFilters([])}
+                      className="px-3 py-1.5 rounded-full text-xs font-medium border border-dashed text-muted-foreground hover:bg-accent/40"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Search Suppliers by Name</label>
+                <div className="relative">
+                  <SearchIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    value={supplierSearch}
+                    onChange={(e) => setSupplierSearch(e.target.value)}
+                    placeholder="Type a supplier name..."
+                    className="pl-9"
+                  />
+                </div>
               </div>
 
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <label className="text-sm font-medium">Suppliers ({selectedSupplierIds.length} selected)</label>
                   <Button type="button" variant="ghost" size="sm" onClick={toggleSelectAllFiltered}>
-                    Select all
+                    Select all shown
                   </Button>
                 </div>
                 <div className="border rounded-lg max-h-56 overflow-y-auto divide-y">
@@ -619,7 +658,14 @@ export default function RfqDetailPage() {
                           onCheckedChange={() => toggleSupplier(s.id)}
                         />
                         <div className="flex-1">
-                          <p className="text-sm font-medium">{s.name}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-medium">{s.name}</p>
+                            {s.category && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground border border-border">
+                                {s.category}
+                              </span>
+                            )}
+                          </div>
                           <p className="text-xs text-muted-foreground">
                             {s.phone || 'no phone'} · {s.email || 'no email'}
                           </p>

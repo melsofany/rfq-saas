@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
         : `[${message.type}]`;
 
     await pool.query(
-      `INSERT INTO whatsapp_messages (org_id, contact_wa_id, contact_name, direction, message_type, body, status, wa_message_id)
+      `INSERT INTO whatsapp_messages (org_id, phone, contact_name, direction, message_type, content, status, wa_message_id)
        VALUES ($1, $2, $3, 'in', $4, $5, 'received', $6)`,
       [settings.org_id, from, name || null, message.type, body || null, (message as any).id || null]
     );

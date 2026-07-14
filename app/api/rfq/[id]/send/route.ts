@@ -4,6 +4,8 @@ import { pool } from '@/lib/db';
 import { getAuthFromRequest } from '@/lib/server-auth';
 import { sendWhatsAppText } from '@/lib/whatsapp';
 import { sendOrgEmail } from '@/lib/email';
+import { getCompanySettings } from '@/lib/company';
+import { generateRfqPdf } from '@/lib/pdf';
 
 function getBaseUrl(req: NextRequest): string {
   const host = req.headers.get('x-forwarded-host') || req.headers.get('host');
@@ -55,6 +57,13 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       [orgId, supplierIds]
     );
 
+    const { rows: rfqItems } = await pool.query(
+      `SELECT description, part_no, qty, uom FROM rfq_items WHERE rfq_id = $1 ORDER BY created_at ASC`,
+      [rfqId]
+    );
+
+    const company = viaEmail ? await getCompanySettings(orgId) : null;
+
     const baseUrl = getBaseUrl(req);
     const results: any[] = [];
 
@@ -93,7 +102,25 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         } else {
           try {
             const html = `<p>${(customMessage || `You have received a new Request for Quotation <b>${rfq.internal_rfq_no}</b>.`).replace(/\n/g, '<br/>')}</p><p><a href="${link}">${link}</a></p>`;
-            await sendOrgEmail(orgId, supplier.email, `RFQ ${rfq.internal_rfq_no} — Request for Quotation`, html);
+            let pdfBuffer: Buffer | null = null;
+            try {
+              pdfBuffer = await generateRfqPdf({
+                company,
+                rfq: { internal_rfq_no: rfq.internal_rfq_no, customer_rfq_no: rfq.customer_rfq_no, required_response_date: rfq.required_response_date },
+                items: rfqItems,
+                supplierName: supplier.name,
+                offerLink: link,
+              });
+            } catch (pdfErr) {
+              console.error('rfq pdf generation error:', pdfErr);
+            }
+            await sendOrgEmail(
+              orgId,
+              supplier.email,
+              `RFQ ${rfq.internal_rfq_no} — Request for Quotation`,
+              html,
+              pdfBuffer ? [{ filename: `RFQ-${rfq.internal_rfq_no}.pdf`, content: pdfBuffer, contentType: 'application/pdf' }] : undefined
+            );
             entry.email = { ok: true };
           } catch (err: any) {
             entry.email = { ok: false, error: err.message || 'Failed to send' };
