@@ -2,10 +2,19 @@ import { NextRequest, NextResponse } from 'next/server';
 import { randomUUID, randomBytes } from 'crypto';
 import { pool } from '@/lib/db';
 import { getAuthFromRequest } from '@/lib/server-auth';
-import { sendWhatsAppText } from '@/lib/whatsapp';
+import { sendRfqWhatsAppTemplate } from '@/lib/whatsapp';
 import { sendOrgEmail } from '@/lib/email';
 import { getCompanySettings } from '@/lib/company';
 import { generateRfqPdf } from '@/lib/pdf';
+
+function buildItemsSummary(items: Array<{ description: string; qty: number | string | null }>): string {
+  const suffix = items.length > 5 ? `، وغيرها (${items.length} صنف)` : '';
+  const summary = items
+    .slice(0, 5)
+    .map((item, i) => `${i + 1}. ${item.description}${item.qty ? ` x${item.qty}` : ''}`)
+    .join('، ') + suffix;
+  return summary.length <= 800 ? summary : summary.slice(0, 800 - suffix.length).trimEnd() + '…' + suffix;
+}
 
 function getBaseUrl(req: NextRequest): string {
   const host = req.headers.get('x-forwarded-host') || req.headers.get('host');
@@ -47,10 +56,12 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     // sent_by references organization_members(id), not org_users(id) (the JWT `sub`)
     const { rows: memberRows } = await pool.query(
-      `SELECT id FROM organization_members WHERE user_id = $1 AND org_id = $2 LIMIT 1`,
+      `SELECT id, full_name, phone FROM organization_members WHERE user_id = $1 AND org_id = $2 LIMIT 1`,
       [(auth as any).sub, orgId]
     );
     const memberId: string | null = memberRows[0]?.id || null;
+    const senderName: string = memberRows[0]?.full_name || '';
+    const senderPhone: string | null = memberRows[0]?.phone || null;
 
     const { rows: suppliers } = await pool.query(
       `SELECT id, name, email, phone FROM suppliers WHERE org_id = $1 AND id = ANY($2::uuid[])`,
@@ -62,7 +73,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       [rfqId]
     );
 
-    const company = viaEmail ? await getCompanySettings(orgId) : null;
+    const company = (viaEmail || viaWhatsapp) ? await getCompanySettings(orgId) : null;
 
     const baseUrl = getBaseUrl(req);
     const results: any[] = [];
@@ -78,9 +89,6 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       );
       const sentLogId = sentRows[0].id;
 
-      const defaultMessage = `You have received a new Request for Quotation (${rfq.internal_rfq_no}). Please submit your offer using the link below:\n${link}`;
-      const messageText = customMessage ? `${customMessage}\n\n${link}` : defaultMessage;
-
       const entry: any = { supplier_id: supplier.id, supplier_name: supplier.name, sent_log_id: sentLogId, whatsapp: null, email: null };
 
       if (viaWhatsapp) {
@@ -88,7 +96,20 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
           entry.whatsapp = { ok: false, error: 'No phone number on file' };
         } else {
           try {
-            await sendWhatsAppText(orgId, supplier.phone, messageText);
+            const closeDateText = rfq.required_response_date
+              ? new Date(rfq.required_response_date).toLocaleDateString()
+              : 'غير محدد';
+            const contactText = senderName
+              ? `${senderName}${senderPhone ? ' — ' + senderPhone : ''}`
+              : (company?.phone || company?.name_en || company?.name_ar || '');
+            await sendRfqWhatsAppTemplate(orgId, supplier.phone, {
+              supplierName: supplier.name,
+              rfqNo: rfq.internal_rfq_no,
+              itemsSummary: buildItemsSummary(rfqItems),
+              closeDate: closeDateText,
+              contactText,
+              token,
+            });
             entry.whatsapp = { ok: true };
           } catch (err: any) {
             entry.whatsapp = { ok: false, error: err.message || 'Failed to send' };
