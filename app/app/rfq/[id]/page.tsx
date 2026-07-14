@@ -1,13 +1,31 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
+import { getAccessToken } from '@/lib/org-auth';
 import { dataQuery } from '@/lib/org-data';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StatusBadge } from '@/components/StatusBadge';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import {
   Table,
   TableBody,
@@ -22,7 +40,10 @@ import {
   TabsList,
   TabsTrigger,
 } from '@/components/ui/tabs';
-import { ArrowLeft, FileText, Package, Inbox, Calendar, User, Clock } from 'lucide-react';
+import {
+  ArrowLeft, FileText, Package, Inbox, Calendar, User, Clock,
+  Send, AlertCircle, CheckCircle2, XCircle, MessageCircle, Mail,
+} from 'lucide-react';
 
 interface RfqItem {
   id: string;
@@ -56,6 +77,29 @@ interface Rfq {
   created_at: string;
 }
 
+interface Supplier {
+  id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  category: string;
+}
+
+interface Category {
+  id: string;
+  name: string;
+}
+
+interface SentLogEntry {
+  id: string;
+  supplier_id: string;
+  link_opened: boolean;
+  open_count: number;
+  offer_submitted: boolean;
+  created_at: string;
+  supplier_name?: string;
+}
+
 export default function RfqDetailPage() {
   const { orgId, isLoading: authLoading } = useAuth();
   const router = useRouter();
@@ -66,9 +110,67 @@ export default function RfqDetailPage() {
   const [offers, setOffers] = useState<Offer[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Send-to-suppliers state
+  const [sendOpen, setSendOpen] = useState(false);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [selectedSupplierIds, setSelectedSupplierIds] = useState<string[]>([]);
+  const [viaWhatsapp, setViaWhatsapp] = useState(true);
+  const [viaEmail, setViaEmail] = useState(true);
+  const [sendMessage, setSendMessage] = useState('');
+  const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState('');
+  const [sendResults, setSendResults] = useState<any[] | null>(null);
+  const [sentLog, setSentLog] = useState<SentLogEntry[]>([]);
+
   useEffect(() => {
     if (!orgId || !id) return;
     fetchRfqData();
+    fetchSuppliersAndCategories();
+    fetchSentLog();
+  }, [orgId, id]);
+
+  const fetchSuppliersAndCategories = useCallback(async () => {
+    if (!orgId) return;
+    try {
+      const [supplierData, categoryData] = await Promise.all([
+        dataQuery<Supplier>('suppliers', {
+          select: 'id, name, email, phone, category',
+          eq: { org_id: orgId, is_active: true },
+          order: { column: 'name', ascending: true },
+        }),
+        dataQuery<Category>('supplier_categories', {
+          select: 'id, name',
+          eq: { org_id: orgId },
+          order: { column: 'name', ascending: true },
+        }),
+      ]);
+      setSuppliers(supplierData ?? []);
+      setCategories(categoryData ?? []);
+    } catch {
+      /* ignore */
+    }
+  }, [orgId]);
+
+  const fetchSentLog = useCallback(async () => {
+    if (!orgId || !id) return;
+    try {
+      const logData = await dataQuery<SentLogEntry>('sent_log', {
+        select: 'id, supplier_id, link_opened, open_count, offer_submitted, created_at',
+        eq: { rfq_id: id, org_id: orgId },
+        order: { column: 'created_at', ascending: false },
+      });
+      const supplierData = await dataQuery<{ id: string; name: string }>('suppliers', {
+        select: 'id, name',
+        eq: { org_id: orgId },
+      });
+      const nameMap: Record<string, string> = {};
+      supplierData.forEach((s) => { nameMap[s.id] = s.name; });
+      setSentLog((logData ?? []).map((l) => ({ ...l, supplier_name: nameMap[l.supplier_id] ?? 'Unknown' })));
+    } catch {
+      /* ignore */
+    }
   }, [orgId, id]);
 
   const fetchRfqData = async () => {
@@ -130,6 +232,74 @@ export default function RfqDetailPage() {
     }
   };
 
+  const filteredSuppliers = suppliers.filter((s) => categoryFilter === 'all' || s.category === categoryFilter);
+
+  const toggleSupplier = (supplierId: string) => {
+    setSelectedSupplierIds((prev) =>
+      prev.includes(supplierId) ? prev.filter((sid) => sid !== supplierId) : [...prev, supplierId]
+    );
+  };
+
+  const toggleSelectAllFiltered = () => {
+    const filteredIds = filteredSuppliers.map((s) => s.id);
+    const allSelected = filteredIds.every((sid) => selectedSupplierIds.includes(sid));
+    if (allSelected) {
+      setSelectedSupplierIds((prev) => prev.filter((sid) => !filteredIds.includes(sid)));
+    } else {
+      setSelectedSupplierIds((prev) => Array.from(new Set([...prev, ...filteredIds])));
+    }
+  };
+
+  const openSendDialog = () => {
+    setSendError('');
+    setSendResults(null);
+    setSelectedSupplierIds([]);
+    setCategoryFilter('all');
+    setSendMessage('');
+    setSendOpen(true);
+  };
+
+  const handleSendToSuppliers = async () => {
+    if (selectedSupplierIds.length === 0) {
+      setSendError('Select at least one supplier');
+      return;
+    }
+    if (!viaWhatsapp && !viaEmail) {
+      setSendError('Select at least one channel (WhatsApp or Email)');
+      return;
+    }
+    setSendError('');
+    setSending(true);
+    try {
+      const token = getAccessToken();
+      const res = await fetch(`/api/rfq/${id}/send`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          supplierIds: selectedSupplierIds,
+          whatsapp: viaWhatsapp,
+          email: viaEmail,
+          message: sendMessage,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setSendError(json.error || 'Failed to send');
+        return;
+      }
+      setSendResults(json.results);
+      await fetchRfqData();
+      await fetchSentLog();
+    } catch {
+      setSendError('Failed to send');
+    } finally {
+      setSending(false);
+    }
+  };
+
   if (authLoading || loading) {
     return (
       <div className="p-8">
@@ -157,10 +327,14 @@ export default function RfqDetailPage() {
           </div>
           <p className="text-sm text-muted-foreground mt-1">Customer RFQ: {rfq.customer_rfq_no}</p>
         </div>
+        <Button onClick={openSendDialog}>
+          <Send className="w-4 h-4 mr-2" />
+          Send to Suppliers
+        </Button>
       </div>
 
       {/* Details Grid */}
-      <div className="grid gap-6 lg:grid-cols-3 mb-6">
+      <div className="grid gap-6 sm:grid-cols-2 mb-6">
         <Card>
           <CardHeader className="pb-3">
             <CardDescription>Customer RFQ Date</CardDescription>
@@ -176,26 +350,13 @@ export default function RfqDetailPage() {
         </Card>
         <Card>
           <CardHeader className="pb-3">
-            <CardDescription>Required Response Date</CardDescription>
+            <CardDescription>Required Response / Expiry Date</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
               <Clock className="w-4 h-4 text-muted-foreground" />
               <span className="text-sm font-medium">
                 {rfq.required_response_date ? new Date(rfq.required_response_date).toLocaleDateString() : '—'}
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-3">
-            <CardDescription>Expires At</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm font-medium">
-                {rfq.expires_at ? new Date(rfq.expires_at).toLocaleDateString() : '—'}
               </span>
             </div>
           </CardContent>
@@ -212,6 +373,10 @@ export default function RfqDetailPage() {
           <TabsTrigger value="offers">
             <Inbox className="w-4 h-4 mr-2" />
             Offers ({offers.length})
+          </TabsTrigger>
+          <TabsTrigger value="sent">
+            <Send className="w-4 h-4 mr-2" />
+            Sent ({sentLog.length})
           </TabsTrigger>
         </TabsList>
 
@@ -321,6 +486,57 @@ export default function RfqDetailPage() {
             </CardContent>
           </Card>
         </TabsContent>
+        {/* Sent Tab */}
+        <TabsContent value="sent">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Sent to Suppliers</CardTitle>
+              <CardDescription>Delivery and response tracking for this RFQ</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {sentLog.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                  <Send className="w-12 h-12 mb-3 opacity-50" />
+                  <p className="text-sm">Not sent to any supplier yet</p>
+                  <p className="text-xs mt-1">Use "Send to Suppliers" to reach out via WhatsApp or Email</p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Supplier</TableHead>
+                      <TableHead>Sent At</TableHead>
+                      <TableHead>Link Opened</TableHead>
+                      <TableHead>Offer Submitted</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {sentLog.map((entry) => (
+                      <TableRow key={entry.id}>
+                        <TableCell className="font-medium">{entry.supplier_name}</TableCell>
+                        <TableCell>{new Date(entry.created_at).toLocaleString()}</TableCell>
+                        <TableCell>
+                          {entry.link_opened ? (
+                            <span className="inline-flex items-center gap-1 text-xs text-green-700">
+                              <CheckCircle2 className="w-3.5 h-3.5" /> Opened ({entry.open_count})
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                              <XCircle className="w-3.5 h-3.5" /> Not yet
+                            </span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <StatusBadge status={entry.offer_submitted ? 'submitted' : 'pending'} />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
 
       {/* Notes */}
@@ -334,6 +550,131 @@ export default function RfqDetailPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Send to Suppliers Dialog */}
+      <Dialog open={sendOpen} onOpenChange={setSendOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Send RFQ to Suppliers</DialogTitle>
+            <DialogDescription>
+              Filter by category, pick suppliers, and choose how to reach them.
+            </DialogDescription>
+          </DialogHeader>
+
+          {sendResults ? (
+            <div className="space-y-3">
+              {sendResults.map((r) => (
+                <div key={r.supplier_id} className="flex items-center justify-between p-3 rounded-lg border">
+                  <span className="text-sm font-medium">{r.supplier_name}</span>
+                  <div className="flex items-center gap-3 text-xs">
+                    {r.whatsapp && (
+                      <span className={`inline-flex items-center gap-1 ${r.whatsapp.ok ? 'text-green-700' : 'text-destructive'}`}>
+                        <MessageCircle className="w-3.5 h-3.5" /> {r.whatsapp.ok ? 'Sent' : r.whatsapp.error}
+                      </span>
+                    )}
+                    {r.email && (
+                      <span className={`inline-flex items-center gap-1 ${r.email.ok ? 'text-green-700' : 'text-destructive'}`}>
+                        <Mail className="w-3.5 h-3.5" /> {r.email.ok ? 'Sent' : r.email.error}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+              <DialogFooter>
+                <Button onClick={() => setSendOpen(false)}>Done</Button>
+              </DialogFooter>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Filter by Category</label>
+                <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All categories" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All categories</SelectItem>
+                    {categories.map((c) => (
+                      <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium">Suppliers ({selectedSupplierIds.length} selected)</label>
+                  <Button type="button" variant="ghost" size="sm" onClick={toggleSelectAllFiltered}>
+                    Select all
+                  </Button>
+                </div>
+                <div className="border rounded-lg max-h-56 overflow-y-auto divide-y">
+                  {filteredSuppliers.length === 0 ? (
+                    <p className="text-sm text-muted-foreground p-4">No suppliers in this category</p>
+                  ) : (
+                    filteredSuppliers.map((s) => (
+                      <label key={s.id} className="flex items-center gap-3 p-3 cursor-pointer hover:bg-accent/30">
+                        <Checkbox
+                          checked={selectedSupplierIds.includes(s.id)}
+                          onCheckedChange={() => toggleSupplier(s.id)}
+                        />
+                        <div className="flex-1">
+                          <p className="text-sm font-medium">{s.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {s.phone || 'no phone'} · {s.email || 'no email'}
+                          </p>
+                        </div>
+                      </label>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Send via</label>
+                <div className="flex items-center gap-6">
+                  <label className="flex items-center gap-2 cursor-pointer text-sm">
+                    <Checkbox checked={viaWhatsapp} onCheckedChange={(v) => setViaWhatsapp(!!v)} />
+                    <MessageCircle className="w-4 h-4" /> WhatsApp
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer text-sm">
+                    <Checkbox checked={viaEmail} onCheckedChange={(v) => setViaEmail(!!v)} />
+                    <Mail className="w-4 h-4" /> Email
+                  </label>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Custom Message (optional)</label>
+                <Textarea
+                  value={sendMessage}
+                  onChange={(e) => setSendMessage(e.target.value)}
+                  placeholder="Add a note before the RFQ link..."
+                  rows={3}
+                />
+              </div>
+
+              {sendError && (
+                <div className="flex items-center gap-2 text-destructive text-sm bg-destructive/10 px-3 py-2 rounded">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  {sendError}
+                </div>
+              )}
+
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setSendOpen(false)}>Cancel</Button>
+                <Button onClick={handleSendToSuppliers} disabled={sending}>
+                  {sending ? (
+                    <><div className="w-4 h-4 mr-2 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />Sending...</>
+                  ) : (
+                    <><Send className="w-4 h-4 mr-2" />Send</>
+                  )}
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -38,7 +38,6 @@ export default function NewRfqPage() {
   const [customerRfqNo, setCustomerRfqNo] = useState('');
   const [customerRfqDate, setCustomerRfqDate] = useState('');
   const [requiredResponseDate, setRequiredResponseDate] = useState('');
-  const [expiresAt, setExpiresAt] = useState('');
   const [notes, setNotes] = useState('');
   const [lineItems, setLineItems] = useState<LineItem[]>([
     { id: '1', description: '', part_no: '', qty: '', uom: '', reference_price: '' },
@@ -113,7 +112,7 @@ export default function NewRfqPage() {
         customer_rfq_no: customerRfqNo || null,
         customer_rfq_date: customerRfqDate || null,
         required_response_date: requiredResponseDate || null,
-        expires_at: expiresAt || null,
+        expires_at: requiredResponseDate || null,
         status: 'draft',
         created_by: orgMember?.id || null,
         notes: notes || null,
@@ -212,21 +211,12 @@ export default function NewRfqPage() {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="required_response_date">Required Response Date</Label>
+                <Label htmlFor="required_response_date">Required Response / Expiry Date</Label>
                 <Input
                   id="required_response_date"
                   type="date"
                   value={requiredResponseDate}
                   onChange={(e) => setRequiredResponseDate(e.target.value)}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="expires_at">Expires At</Label>
-                <Input
-                  id="expires_at"
-                  type="date"
-                  value={expiresAt}
-                  onChange={(e) => setExpiresAt(e.target.value)}
                 />
               </div>
             </div>
