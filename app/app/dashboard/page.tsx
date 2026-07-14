@@ -105,14 +105,21 @@ export default function DashboardPage() {
       // Fetch suppliers count
       const totalSuppliers = await dataCount('suppliers', { org_id: orgId, is_active: true });
 
-      // Fetch sent log for response rate
-      const sentLogs = await dataQuery<{ offer_submitted: boolean }>('sent_log', {
-        select: 'offer_submitted',
+      // Fetch sent log for response rate. A supplier can be (re)sent the same RFQ
+      // multiple times (e.g. a retry over WhatsApp + Email) — dedupe by
+      // rfq_id+supplier_id so retries don't inflate "total sent" or skew the rate.
+      const sentLogs = await dataQuery<{ rfq_id: string; supplier_id: string; offer_submitted: boolean }>('sent_log', {
+        select: 'rfq_id, supplier_id, offer_submitted',
         eq: { org_id: orgId },
       });
 
-      const totalSent = sentLogs.length;
-      const responded = sentLogs.filter((s) => s.offer_submitted).length;
+      const uniqueSends = new Map<string, boolean>();
+      for (const s of sentLogs) {
+        const key = `${s.rfq_id}:${s.supplier_id}`;
+        uniqueSends.set(key, (uniqueSends.get(key) ?? false) || s.offer_submitted);
+      }
+      const totalSent = uniqueSends.size;
+      const responded = Array.from(uniqueSends.values()).filter(Boolean).length;
       const responseRate = totalSent > 0 ? Math.round((responded / totalSent) * 100) : 0;
 
       setStats({

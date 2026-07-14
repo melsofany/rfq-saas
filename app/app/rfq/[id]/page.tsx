@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { getAccessToken } from '@/lib/org-auth';
@@ -95,6 +95,47 @@ interface SentLogEntry {
   supplier_name?: string;
 }
 
+/** One row per supplier, merging every (re)send of this RFQ to them — resending
+ *  the same supplier (e.g. retrying over WhatsApp/Email) is still logged for
+ *  audit, but should read as a single supplier in the list and in counts. */
+interface SupplierSendSummary {
+  supplier_id: string;
+  supplier_name: string;
+  sendCount: number;
+  firstSentAt: string;
+  lastSentAt: string;
+  linkOpened: boolean;
+  openCount: number;
+  offerSubmitted: boolean;
+}
+
+function groupSentLogBySupplier(entries: SentLogEntry[]): SupplierSendSummary[] {
+  const bySupplier = new Map<string, SupplierSendSummary>();
+  for (const entry of entries) {
+    const existing = bySupplier.get(entry.supplier_id);
+    if (!existing) {
+      bySupplier.set(entry.supplier_id, {
+        supplier_id: entry.supplier_id,
+        supplier_name: entry.supplier_name ?? 'Unknown',
+        sendCount: 1,
+        firstSentAt: entry.created_at,
+        lastSentAt: entry.created_at,
+        linkOpened: entry.link_opened,
+        openCount: entry.open_count,
+        offerSubmitted: entry.offer_submitted,
+      });
+    } else {
+      existing.sendCount += 1;
+      existing.linkOpened = existing.linkOpened || entry.link_opened;
+      existing.openCount = Math.max(existing.openCount, entry.open_count);
+      existing.offerSubmitted = existing.offerSubmitted || entry.offer_submitted;
+      if (entry.created_at > existing.lastSentAt) existing.lastSentAt = entry.created_at;
+      if (entry.created_at < existing.firstSentAt) existing.firstSentAt = entry.created_at;
+    }
+  }
+  return Array.from(bySupplier.values()).sort((a, b) => (a.lastSentAt < b.lastSentAt ? 1 : -1));
+}
+
 export default function RfqDetailPage() {
   const { orgId, isLoading: authLoading } = useAuth();
   const router = useRouter();
@@ -119,6 +160,7 @@ export default function RfqDetailPage() {
   const [sendError, setSendError] = useState('');
   const [sendResults, setSendResults] = useState<any[] | null>(null);
   const [sentLog, setSentLog] = useState<SentLogEntry[]>([]);
+  const groupedSentLog = useMemo(() => groupSentLogBySupplier(sentLog), [sentLog]);
 
   useEffect(() => {
     if (!orgId || !id) return;
@@ -381,7 +423,7 @@ export default function RfqDetailPage() {
           </TabsTrigger>
           <TabsTrigger value="sent">
             <Send className="w-4 h-4 mr-2" />
-            Sent ({sentLog.length})
+            Sent ({groupedSentLog.length})
           </TabsTrigger>
         </TabsList>
 
@@ -499,7 +541,7 @@ export default function RfqDetailPage() {
               <CardDescription>Delivery and response tracking for this RFQ</CardDescription>
             </CardHeader>
             <CardContent>
-              {sentLog.length === 0 ? (
+              {groupedSentLog.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
                   <Send className="w-12 h-12 mb-3 opacity-50" />
                   <p className="text-sm">Not sent to any supplier yet</p>
@@ -516,14 +558,19 @@ export default function RfqDetailPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {sentLog.map((entry) => (
-                      <TableRow key={entry.id}>
-                        <TableCell className="font-medium">{entry.supplier_name}</TableCell>
-                        <TableCell>{new Date(entry.created_at).toLocaleString()}</TableCell>
+                    {groupedSentLog.map((entry) => (
+                      <TableRow key={entry.supplier_id}>
+                        <TableCell className="font-medium">
+                          {entry.supplier_name}
+                          {entry.sendCount > 1 && (
+                            <span className="ml-2 text-xs text-muted-foreground">(sent {entry.sendCount}×)</span>
+                          )}
+                        </TableCell>
+                        <TableCell>{new Date(entry.lastSentAt).toLocaleString()}</TableCell>
                         <TableCell>
-                          {entry.link_opened ? (
+                          {entry.linkOpened ? (
                             <span className="inline-flex items-center gap-1 text-xs text-green-700">
-                              <CheckCircle2 className="w-3.5 h-3.5" /> Opened ({entry.open_count})
+                              <CheckCircle2 className="w-3.5 h-3.5" /> Opened ({entry.openCount})
                             </span>
                           ) : (
                             <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
@@ -532,7 +579,7 @@ export default function RfqDetailPage() {
                           )}
                         </TableCell>
                         <TableCell>
-                          <StatusBadge status={entry.offer_submitted ? 'submitted' : 'pending'} />
+                          <StatusBadge status={entry.offerSubmitted ? 'submitted' : 'pending'} />
                         </TableCell>
                       </TableRow>
                     ))}
