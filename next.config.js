@@ -4,6 +4,7 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
   images: { unoptimized: true },
+  transpilePackages: ['whatsapp-api-js'],
   // Bust build cache
   generateBuildId: () => 'build-' + Date.now(),
 };
