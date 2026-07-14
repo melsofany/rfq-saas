@@ -30,7 +30,7 @@ interface LineItem {
 }
 
 export default function NewRfqPage() {
-  const { orgId, user, isLoading: authLoading } = useAuth();
+  const { orgId, user, orgMember, isLoading: authLoading } = useAuth();
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -94,8 +94,8 @@ export default function NewRfqPage() {
 
     setError('');
 
-    if (!internalRfqNo || !customerRfqNo) {
-      setError('Internal RFQ No and Customer RFQ No are required');
+    if (!internalRfqNo) {
+      setError('Internal RFQ No is required');
       return;
     }
 
@@ -110,12 +110,12 @@ export default function NewRfqPage() {
       const rfq = await dataInsert<{ id: string }>('rfqs', {
         org_id: orgId,
         internal_rfq_no: internalRfqNo,
-        customer_rfq_no: customerRfqNo,
+        customer_rfq_no: customerRfqNo || null,
         customer_rfq_date: customerRfqDate || null,
         required_response_date: requiredResponseDate || null,
         expires_at: expiresAt || null,
         status: 'draft',
-        created_by: user.id,
+        created_by: orgMember?.id || null,
         notes: notes || null,
       } as any);
 
@@ -194,13 +194,12 @@ export default function NewRfqPage() {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="customer_rfq_no">Customer RFQ No <span className="text-destructive">*</span></Label>
+                <Label htmlFor="customer_rfq_no">Customer RFQ No</Label>
                 <Input
                   id="customer_rfq_no"
                   value={customerRfqNo}
                   onChange={(e) => setCustomerRfqNo(e.target.value)}
                   placeholder="CUST-RFQ-001"
-                  required
                 />
               </div>
               <div className="space-y-1.5">

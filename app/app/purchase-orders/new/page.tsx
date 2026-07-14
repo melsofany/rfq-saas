@@ -75,7 +75,7 @@ interface OfferItem {
 /* ─── Component ──────────────────────────────────────── */
 
 export default function NewPurchaseOrderPage() {
-  const { orgId, user, isLoading: authLoading } = useAuth();
+  const { orgId, user, orgMember, isLoading: authLoading } = useAuth();
   const router = useRouter();
 
   /* PO form state */
@@ -270,7 +270,7 @@ export default function NewPurchaseOrderPage() {
         receiver_name: receiverName || null,
         receiver_phone: receiverPhone || null,
         status: 'draft',
-        created_by: user.id,
+        created_by: orgMember?.id || null,
         notes: notes || null,
       } as any);
 
