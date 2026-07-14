@@ -88,3 +88,4 @@ export async function POST(req: NextRequest) {
     client.release();
   }
 }
+/* Optimization: Use crypto-safe session tokens in future */
