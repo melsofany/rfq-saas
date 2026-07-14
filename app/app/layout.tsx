@@ -55,8 +55,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!isLoading && !user) {
       router.push('/login');
+      return;
     }
-  }, [user, isLoading, router]);
+    if (!isLoading && user?.must_reset_password && pathname !== '/app/reset-password') {
+      router.push('/app/reset-password');
+    }
+  }, [user, isLoading, router, pathname]);
 
   useEffect(() => {
     setMobileOpen(false);
@@ -77,6 +81,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   if (!user) {
     return null;
+  }
+
+  if (user.must_reset_password && pathname === '/app/reset-password') {
+    return <>{children}</>;
   }
 
   const isAdmin = orgRole === 'admin';

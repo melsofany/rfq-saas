@@ -8,6 +8,7 @@ export interface OrgUser {
   id: string;
   email: string;
   full_name?: string;
+  must_reset_password?: boolean;
 }
 
 export interface OrgMember {

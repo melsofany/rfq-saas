@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
     }
 
     const { rows: userRows } = await pool.query(
-      `SELECT id, email, full_name, is_active FROM org_users WHERE id = $1 AND is_active = true`,
+      `SELECT id, email, full_name, is_active, must_reset_password FROM org_users WHERE id = $1 AND is_active = true`,
       [decoded.sub]
     );
     const user = userRows[0];
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
     );
 
     return NextResponse.json({
-      user: { id: user.id, email: user.email, full_name: user.full_name },
+      user: { id: user.id, email: user.email, full_name: user.full_name, must_reset_password: user.must_reset_password },
       member: memberRows[0] || null,
     });
   } catch (err: any) {
