@@ -58,7 +58,8 @@ interface EditData {
 }
 
 export default function SupplierDetailPage() {
-  const { orgId, isLoading: authLoading, isAdmin } = useAuth() as any;
+  const { orgId, orgRole, isSaasAdmin, isLoading: authLoading } = useAuth();
+  const canEditDelete = orgRole === 'admin' || isSaasAdmin;
   const router = useRouter();
   const params = useParams();
   const id = params.id as string;
@@ -213,7 +214,7 @@ export default function SupplierDetailPage() {
         </div>
 
         {/* Admin actions */}
-        {isAdmin && (
+        {canEditDelete && (
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={openEdit}>
               <Pencil className="w-4 h-4 mr-1.5" />
