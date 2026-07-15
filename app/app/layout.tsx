@@ -22,6 +22,7 @@ import {
   ChevronRight,
   FileBarChart,
   MessageCircle,
+  Star,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -39,6 +40,7 @@ const navItems: NavItem[] = [
   { label: 'Items', href: '/app/items', icon: Package },
   { label: 'Purchase Orders', href: '/app/purchase-orders', icon: ShoppingCart },
   { label: 'Analytics', href: '/app/analytics', icon: BarChart3 },
+  { label: 'Ratings', href: '/app/ratings', icon: Star },
   { label: 'WhatsApp', href: '/app/whatsapp', icon: MessageCircle },
   { label: 'Settings', href: '/app/settings', icon: Settings },
   { label: 'Employees', href: '/app/employees', icon: Users, adminOnly: true },
