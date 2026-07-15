@@ -127,11 +127,11 @@ export default function RfqListPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="draft">Draft</SelectItem>
-                <SelectItem value="sent">Sent</SelectItem>
-                <SelectItem value="partial">Partial</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
-                <SelectItem value="closed">Closed</SelectItem>
+                <SelectItem value="DRAFT">Draft</SelectItem>
+                <SelectItem value="SENT">Sent</SelectItem>
+                <SelectItem value="QUOTED">Quoted</SelectItem>
+                <SelectItem value="FAILED">Failed</SelectItem>
+                <SelectItem value="SUCCESS">Success</SelectItem>
               </SelectContent>
             </Select>
           </div>

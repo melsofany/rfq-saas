@@ -21,6 +21,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog';
 import { ArrowLeft, Plus, Trash2, Save, AlertCircle, FileSearch, CheckCircle2, ChevronRight } from 'lucide-react';
+import { getAccessToken } from '@/lib/org-auth';
 
 /* ─── Types ─────────────────────────────────────────── */
 
@@ -102,6 +103,7 @@ export default function NewPurchaseOrderPage() {
   const [offerItems, setOfferItems] = useState<OfferItem[]>([]);
   const [rfqDetailLoading, setRfqDetailLoading] = useState(false);
   const [importedFrom, setImportedFrom] = useState<string | null>(null);
+  const [importedFromRfqId, setImportedFromRfqId] = useState<string | null>(null);
 
   /* ── Init ── */
   useEffect(() => {
@@ -241,6 +243,8 @@ export default function NewPurchaseOrderPage() {
         ? `${selectedRfq.internal_rfq_no} — ${offer.supplier_name}`
         : selectedRfq.internal_rfq_no
     );
+    // Track RFQ id so we can mark it SUCCESS after PO is saved (only when an offer was selected)
+    setImportedFromRfqId(offer ? selectedRfq.id : null);
     setRfqDialogOpen(false);
   };
 
@@ -295,6 +299,21 @@ export default function NewPurchaseOrderPage() {
         entity_id: poId,
         description: `Created PO ${internalPoNo}${importedFrom ? ` (from RFQ ${importedFrom})` : ''}`,
       } as any);
+
+      // Mark the originating RFQ as SUCCESS now that a PO has been issued from it
+      if (importedFromRfqId) {
+        try {
+          const token = getAccessToken();
+          await fetch(`/api/rfq/${importedFromRfqId}/status`, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            body: JSON.stringify({ status: 'SUCCESS' }),
+          });
+        } catch { /* non-fatal — PO is already saved */ }
+      }
 
       router.push(`/app/purchase-orders/${poId}`);
     } catch (err: any) {

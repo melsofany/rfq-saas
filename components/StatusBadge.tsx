@@ -16,20 +16,25 @@ const variantClasses: Record<StatusVariant, string> = {
 };
 
 const statusMap: Record<string, { variant: StatusVariant; label: string }> = {
-  draft: { variant: 'gray', label: 'Draft' },
-  sent: { variant: 'blue', label: 'Sent' },
-  partial: { variant: 'amber', label: 'Partial' },
-  completed: { variant: 'green', label: 'Completed' },
-  closed: { variant: 'slate', label: 'Closed' },
-  open: { variant: 'blue', label: 'Open' },
-  pending: { variant: 'amber', label: 'Pending' },
-  approved: { variant: 'green', label: 'Approved' },
-  rejected: { variant: 'red', label: 'Rejected' },
-  cancelled: { variant: 'slate', label: 'Cancelled' },
-  active: { variant: 'green', label: 'Active' },
-  inactive: { variant: 'gray', label: 'Inactive' },
-  received: { variant: 'purple', label: 'Received' },
-  submitted: { variant: 'blue', label: 'Submitted' },
+  // RFQ workflow statuses (uppercase canonical values)
+  draft:   { variant: 'gray',  label: 'Draft' },
+  sent:    { variant: 'blue',  label: 'Sent' },
+  quoted:  { variant: 'amber', label: 'Quoted' },
+  failed:  { variant: 'red',   label: 'Failed' },
+  success: { variant: 'green', label: 'Success' },
+  // Legacy / other statuses kept for backward compat
+  partial:   { variant: 'amber',  label: 'Partial' },
+  completed: { variant: 'green',  label: 'Completed' },
+  closed:    { variant: 'slate',  label: 'Closed' },
+  open:      { variant: 'blue',   label: 'Open' },
+  pending:   { variant: 'amber',  label: 'Pending' },
+  approved:  { variant: 'green',  label: 'Approved' },
+  rejected:  { variant: 'red',    label: 'Rejected' },
+  cancelled: { variant: 'slate',  label: 'Cancelled' },
+  active:    { variant: 'green',  label: 'Active' },
+  inactive:  { variant: 'gray',   label: 'Inactive' },
+  received:  { variant: 'purple', label: 'Received' },
+  submitted: { variant: 'blue',   label: 'Submitted' },
 };
 
 interface StatusBadgeProps {

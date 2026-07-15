@@ -113,7 +113,7 @@ export default function NewRfqPage() {
         customer_rfq_date: customerRfqDate || null,
         required_response_date: requiredResponseDate || null,
         expires_at: requiredResponseDate || null,
-        status: 'draft',
+        status: 'DRAFT',
         created_by: orgMember?.id || null,
         notes: notes || null,
       } as any);

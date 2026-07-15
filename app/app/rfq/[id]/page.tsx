@@ -37,7 +37,7 @@ import {
 import {
   ArrowLeft, FileText, Package, Inbox, Calendar, User, Clock,
   Send, AlertCircle, CheckCircle2, XCircle, MessageCircle, Mail,
-  Search as SearchIcon,
+  Search as SearchIcon, XOctagon,
 } from 'lucide-react';
 
 interface RfqItem {
@@ -161,6 +161,7 @@ export default function RfqDetailPage() {
   const [sendResults, setSendResults] = useState<any[] | null>(null);
   const [sentLog, setSentLog] = useState<SentLogEntry[]>([]);
   const groupedSentLog = useMemo(() => groupSentLogBySupplier(sentLog), [sentLog]);
+  const [markingFailed, setMarkingFailed] = useState(false);
 
   useEffect(() => {
     if (!orgId || !id) return;
@@ -224,7 +225,7 @@ export default function RfqDetailPage() {
         router.push('/app/rfq');
         return;
       }
-      setRfq(rfqData[0]);
+      const rfqRecord = { ...rfqData[0] };
 
       const itemsData = await dataQuery<RfqItem>('rfq_items', {
         select: 'id, description, part_no, qty, uom, reference_price',
@@ -262,6 +263,28 @@ export default function RfqDetailPage() {
         supplier_email: offer.supplier_id ? supplierMap[offer.supplier_id]?.email : undefined,
       }));
 
+      // Auto-FAILED: closing date passed with no offers
+      if (
+        rfqRecord.status === 'SENT' &&
+        offersWithSuppliers.length === 0 &&
+        rfqRecord.required_response_date &&
+        new Date(rfqRecord.required_response_date) < new Date()
+      ) {
+        try {
+          const token = getAccessToken();
+          const res = await fetch(`/api/rfq/${id}/status`, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            body: JSON.stringify({ status: 'FAILED' }),
+          });
+          if (res.ok) rfqRecord.status = 'FAILED';
+        } catch { /* non-fatal */ }
+      }
+
+      setRfq(rfqRecord);
       setOffers(offersWithSuppliers);
     } catch (error) {
       console.error('Error fetching RFQ:', error);
@@ -293,6 +316,29 @@ export default function RfqDetailPage() {
       setSelectedSupplierIds((prev) => prev.filter((sid) => !filteredIds.includes(sid)));
     } else {
       setSelectedSupplierIds((prev) => Array.from(new Set([...prev, ...filteredIds])));
+    }
+  };
+
+  const handleMarkAsFailed = async () => {
+    if (!id || markingFailed) return;
+    setMarkingFailed(true);
+    try {
+      const token = getAccessToken();
+      const res = await fetch(`/api/rfq/${id}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ status: 'FAILED' }),
+      });
+      if (res.ok) {
+        setRfq((prev) => prev ? { ...prev, status: 'FAILED' } : prev);
+      }
+    } catch {
+      /* ignore */
+    } finally {
+      setMarkingFailed(false);
     }
   };
 
@@ -374,10 +420,27 @@ export default function RfqDetailPage() {
           </div>
           <p className="text-sm text-muted-foreground mt-1">Customer RFQ: {rfq.customer_rfq_no}</p>
         </div>
-        <Button onClick={openSendDialog}>
-          <Send className="w-4 h-4 mr-2" />
-          Send to Suppliers
-        </Button>
+        <div className="flex items-center gap-2">
+          {(rfq.status === 'SENT' || rfq.status === 'QUOTED') && (
+            <Button
+              variant="outline"
+              className="border-red-300 text-red-600 hover:bg-red-50"
+              onClick={handleMarkAsFailed}
+              disabled={markingFailed}
+            >
+              {markingFailed ? (
+                <div className="w-4 h-4 mr-2 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <XOctagon className="w-4 h-4 mr-2" />
+              )}
+              Mark as Failed
+            </Button>
+          )}
+          <Button onClick={openSendDialog}>
+            <Send className="w-4 h-4 mr-2" />
+            Send to Suppliers
+          </Button>
+        </div>
       </div>
 
       {/* Details Grid */}

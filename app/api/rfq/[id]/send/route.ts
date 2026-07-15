@@ -152,8 +152,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       results.push(entry);
     }
 
-    // Mark the RFQ as sent (only moves it forward from draft)
-    await pool.query(`UPDATE rfqs SET status = 'sent', updated_at = now() WHERE id = $1 AND org_id = $2 AND status = 'draft'`, [rfqId, orgId]);
+    // Mark the RFQ as SENT (only moves it forward from DRAFT)
+    await pool.query(`UPDATE rfqs SET status = 'SENT', updated_at = now() WHERE id = $1 AND org_id = $2 AND status = 'DRAFT'`, [rfqId, orgId]);
 
     await pool.query(
       `INSERT INTO audit_log (org_id, action, entity_type, entity_id, description)

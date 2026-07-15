@@ -110,8 +110,9 @@ export async function POST(req: NextRequest, { params }: { params: { token: stri
 
     await pool.query(`UPDATE sent_log SET offer_submitted = true WHERE id = $1`, [log.id]);
 
+    // First offer submission moves RFQ from SENT → QUOTED; subsequent offers keep it QUOTED
     await pool.query(
-      `UPDATE rfqs SET status = CASE WHEN status = 'sent' THEN 'partial' ELSE status END, updated_at = now() WHERE id = $1`,
+      `UPDATE rfqs SET status = CASE WHEN status = 'SENT' THEN 'QUOTED' ELSE status END, updated_at = now() WHERE id = $1`,
       [log.rfq_id]
     );
 
