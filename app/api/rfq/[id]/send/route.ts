@@ -79,6 +79,23 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const results: any[] = [];
 
     for (const supplier of suppliers) {
+      // Block if sent 5+ times to this supplier for this RFQ without a response
+      const { rows: countRows } = await pool.query(
+        `SELECT COUNT(*) AS cnt FROM sent_log
+         WHERE rfq_id = $1 AND supplier_id = $2 AND offer_submitted = false`,
+        [rfqId, supplier.id]
+      );
+      const sentCount = parseInt(countRows[0].cnt, 10);
+      if (sentCount >= 5) {
+        results.push({
+          supplier_id: supplier.id,
+          supplier_name: supplier.name,
+          blocked: true,
+          error: 'تم إيقاف الإرسال لهذا المورد بعد 5 محاولات بدون استجابة',
+        });
+        continue;
+      }
+
       const token = randomBytes(24).toString('hex');
       const link = `${baseUrl}/offer/${token}`;
 

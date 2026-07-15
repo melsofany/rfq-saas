@@ -293,6 +293,17 @@ export default function RfqDetailPage() {
     }
   };
 
+  // Suppliers blocked due to 5+ sends without response
+  const blockedSupplierIds = useMemo(() => {
+    const blocked = new Set<string>();
+    for (const entry of groupedSentLog) {
+      if (entry.sendCount >= 5 && !entry.offerSubmitted) {
+        blocked.add(entry.supplier_id);
+      }
+    }
+    return blocked;
+  }, [groupedSentLog]);
+
   const filteredSuppliers = suppliers.filter((s) => {
     const matchesCategory = categoryFilters.length === 0 || categoryFilters.includes(s.category);
     const matchesSearch = supplierSearch.trim() === '' || s.name.toLowerCase().includes(supplierSearch.trim().toLowerCase());
@@ -621,31 +632,39 @@ export default function RfqDetailPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {groupedSentLog.map((entry) => (
-                      <TableRow key={entry.supplier_id}>
-                        <TableCell className="font-medium">
-                          {entry.supplier_name}
-                          {entry.sendCount > 1 && (
-                            <span className="ml-2 text-xs text-muted-foreground">(sent {entry.sendCount}×)</span>
-                          )}
-                        </TableCell>
-                        <TableCell>{new Date(entry.lastSentAt).toLocaleString()}</TableCell>
-                        <TableCell>
-                          {entry.linkOpened ? (
-                            <span className="inline-flex items-center gap-1 text-xs text-green-700">
-                              <CheckCircle2 className="w-3.5 h-3.5" /> Opened ({entry.openCount})
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                              <XCircle className="w-3.5 h-3.5" /> Not yet
-                            </span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <StatusBadge status={entry.offerSubmitted ? 'submitted' : 'pending'} />
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {groupedSentLog.map((entry) => {
+                      const isBlocked = entry.sendCount >= 5 && !entry.offerSubmitted;
+                      return (
+                        <TableRow key={entry.supplier_id}>
+                          <TableCell className="font-medium">
+                            {entry.supplier_name}
+                            {entry.sendCount > 1 && (
+                              <span className="ml-2 text-xs text-muted-foreground">({entry.sendCount}× مرسَل)</span>
+                            )}
+                            {isBlocked && (
+                              <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 border border-red-200 font-medium">
+                                موقوف
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell>{new Date(entry.lastSentAt).toLocaleString('ar')}</TableCell>
+                          <TableCell>
+                            {entry.linkOpened ? (
+                              <span className="inline-flex items-center gap-1 text-xs text-green-700">
+                                <CheckCircle2 className="w-3.5 h-3.5" /> فُتح ({entry.openCount})
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                                <XCircle className="w-3.5 h-3.5" /> لم يُفتح
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <StatusBadge status={entry.offerSubmitted ? 'submitted' : 'pending'} />
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               )}
@@ -679,18 +698,26 @@ export default function RfqDetailPage() {
           {sendResults ? (
             <div className="space-y-3">
               {sendResults.map((r) => (
-                <div key={r.supplier_id} className="flex items-center justify-between p-3 rounded-lg border">
+                <div key={r.supplier_id} className={`flex items-center justify-between p-3 rounded-lg border ${r.blocked ? 'border-red-200 bg-red-50/50' : ''}`}>
                   <span className="text-sm font-medium">{r.supplier_name}</span>
                   <div className="flex items-center gap-3 text-xs">
-                    {r.whatsapp && (
-                      <span className={`inline-flex items-center gap-1 ${r.whatsapp.ok ? 'text-green-700' : 'text-destructive'}`}>
-                        <MessageCircle className="w-3.5 h-3.5" /> {r.whatsapp.ok ? 'Sent' : r.whatsapp.error}
+                    {r.blocked ? (
+                      <span className="inline-flex items-center gap-1 text-red-700">
+                        <AlertCircle className="w-3.5 h-3.5" /> {r.error}
                       </span>
-                    )}
-                    {r.email && (
-                      <span className={`inline-flex items-center gap-1 ${r.email.ok ? 'text-green-700' : 'text-destructive'}`}>
-                        <Mail className="w-3.5 h-3.5" /> {r.email.ok ? 'Sent' : r.email.error}
-                      </span>
+                    ) : (
+                      <>
+                        {r.whatsapp && (
+                          <span className={`inline-flex items-center gap-1 ${r.whatsapp.ok ? 'text-green-700' : 'text-destructive'}`}>
+                            <MessageCircle className="w-3.5 h-3.5" /> {r.whatsapp.ok ? 'أُرسل' : r.whatsapp.error}
+                          </span>
+                        )}
+                        {r.email && (
+                          <span className={`inline-flex items-center gap-1 ${r.email.ok ? 'text-green-700' : 'text-destructive'}`}>
+                            <Mail className="w-3.5 h-3.5" /> {r.email.ok ? 'أُرسل' : r.email.error}
+                          </span>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
@@ -761,27 +788,39 @@ export default function RfqDetailPage() {
                   {filteredSuppliers.length === 0 ? (
                     <p className="text-sm text-muted-foreground p-4">No suppliers in this category</p>
                   ) : (
-                    filteredSuppliers.map((s) => (
-                      <label key={s.id} className="flex items-center gap-3 p-3 cursor-pointer hover:bg-accent/30">
-                        <Checkbox
-                          checked={selectedSupplierIds.includes(s.id)}
-                          onCheckedChange={() => toggleSupplier(s.id)}
-                        />
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <p className="text-sm font-medium">{s.name}</p>
-                            {s.category && (
-                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground border border-border">
-                                {s.category}
-                              </span>
-                            )}
+                    filteredSuppliers.map((s) => {
+                      const isBlocked = blockedSupplierIds.has(s.id);
+                      return (
+                        <label
+                          key={s.id}
+                          className={`flex items-center gap-3 p-3 ${isBlocked ? 'opacity-60 cursor-not-allowed bg-red-50/50' : 'cursor-pointer hover:bg-accent/30'}`}
+                        >
+                          <Checkbox
+                            checked={selectedSupplierIds.includes(s.id)}
+                            onCheckedChange={() => !isBlocked && toggleSupplier(s.id)}
+                            disabled={isBlocked}
+                          />
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <p className="text-sm font-medium">{s.name}</p>
+                              {s.category && (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground border border-border">
+                                  {s.category}
+                                </span>
+                              )}
+                              {isBlocked && (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 border border-red-200 font-medium">
+                                  موقوف — 5 محاولات بلا رد
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              {s.phone || 'no phone'} · {s.email || 'no email'}
+                            </p>
                           </div>
-                          <p className="text-xs text-muted-foreground">
-                            {s.phone || 'no phone'} · {s.email || 'no email'}
-                          </p>
-                        </div>
-                      </label>
-                    ))
+                        </label>
+                      );
+                    })
                   )}
                 </div>
               </div>
