@@ -30,20 +30,37 @@ export async function POST(req: NextRequest) {
   try {
     await client.query('BEGIN');
 
+    // Global email check: one email can belong to at most one organization
     const { rows: existing } = await client.query(`SELECT id FROM org_users WHERE email = $1`, [lowerEmail]);
 
     let userId: string;
     if (existing[0]) {
       userId = existing[0].id;
-      const { rows: alreadyMember } = await client.query(
-        `SELECT id FROM organization_members WHERE org_id = $1 AND user_id = $2`,
-        [orgId, userId]
+      const { rows: anyMembership } = await client.query(
+        `SELECT org_id FROM organization_members WHERE user_id = $1 LIMIT 1`,
+        [userId]
       );
-      if (alreadyMember[0]) {
+      if (anyMembership[0]) {
         await client.query('ROLLBACK');
-        return NextResponse.json({ error: 'هذا البريد الإلكتروني مسجل بالفعل في الشركة' }, { status: 409 });
+        const errMsg = anyMembership[0].org_id === orgId
+          ? 'هذا البريد الإلكتروني مسجل بالفعل في شركتك'
+          : 'هذا البريد الإلكتروني مستخدم بالفعل في شركة أخرى ولا يمكن إضافته';
+        return NextResponse.json({ error: errMsg }, { status: 409 });
       }
     } else {
+      // Global phone check: one phone number can belong to at most one organization
+      const { rows: existingPhone } = await client.query(
+        `SELECT id FROM organization_members WHERE phone = $1 LIMIT 1`,
+        [String(phone).trim()]
+      );
+      if (existingPhone[0]) {
+        await client.query('ROLLBACK');
+        return NextResponse.json(
+          { error: 'رقم الهاتف هذا مستخدم بالفعل في شركة أخرى ولا يمكن إضافته' },
+          { status: 409 }
+        );
+      }
+
       const passwordHash = await hashPassword(password);
       const { rows: userRows } = await client.query(
         `INSERT INTO org_users (email, password_hash, full_name, is_active)
@@ -51,6 +68,21 @@ export async function POST(req: NextRequest) {
         [lowerEmail, passwordHash, full_name]
       );
       userId = userRows[0].id;
+    }
+
+    // Also check phone uniqueness when the user already exists (existing org_users entry)
+    if (existing[0]) {
+      const { rows: existingPhone } = await client.query(
+        `SELECT id FROM organization_members WHERE phone = $1 LIMIT 1`,
+        [String(phone).trim()]
+      );
+      if (existingPhone[0]) {
+        await client.query('ROLLBACK');
+        return NextResponse.json(
+          { error: 'رقم الهاتف هذا مستخدم بالفعل في شركة أخرى ولا يمكن إضافته' },
+          { status: 409 }
+        );
+      }
     }
 
     const { rows: memberRows } = await client.query(
