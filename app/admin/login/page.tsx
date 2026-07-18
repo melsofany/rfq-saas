@@ -94,22 +94,6 @@ export default function AdminLoginPage() {
           <Link href="/" className="hover:text-sidebar-foreground">← Back to site</Link>
         </p>
 
-        <div className="mt-4 rounded-lg border border-primary/30 bg-primary/10 p-3 text-center">
-          <p className="text-xs font-semibold text-primary mb-1">Trial Admin Account</p>
-          <p className="text-xs text-sidebar-foreground/60">
-            Email: <span className="font-mono font-medium text-sidebar-foreground">admin@rfqmanager.com</span>
-          </p>
-          <p className="text-xs text-sidebar-foreground/60">
-            Password: <span className="font-mono font-medium text-sidebar-foreground">Admin2026!</span>
-          </p>
-          <button
-            type="button"
-            onClick={() => { setEmail('admin@rfqmanager.com'); setPassword('Admin2026!'); }}
-            className="mt-2 text-xs text-primary font-medium hover:underline"
-          >
-            Click to fill credentials
-          </button>
-        </div>
       </div>
     </div>
   );
